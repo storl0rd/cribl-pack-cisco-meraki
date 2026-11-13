@@ -11,8 +11,6 @@ functions:
   description: Load pack variables into internal fields (Code functions read __cfg_*).
   conf:
     add:
-    - name: __cfg_output_mode
-      value: C.vars.meraki_output_mode || 'raw'
     - name: __cfg_index
       value: C.vars.meraki_index || ''
     - name: __cfg_org_id
@@ -28,14 +26,14 @@ functions:
   conf:
     code: "// meraki_syslog: Meraki MX/MS/MR/MV/MG syslog (Dashboard > Network-wide > General > Reporting).\n// The Splunk TA 3.5.0 does not handle syslog; formats follow Meraki's\n// \"Syslog Event Types and Log Samples\" documentation.\n//\n//   <134>1 1700000000.123456789 MX84_HQ flows src=10.0.0.5 dst=8.8.8.8 mac=AA:.. protocol=udp sport=5353 dport=53 pattern: allow all\n//   ^PRI ^v ^epoch               ^device ^category ^body\nconst raw = (typeof __e._raw === 'string' ? __e._raw : String(__e._raw)).replace(/[\\r\\n]+$/, '');\nconst HDR = /^(?:<(\\d{1,3})>)?(?:[\\s\\S]*?\\s)??(?:1\\s+)?(\\d{10}(?:\\.\\d+)?)\\s+(\\S+)\\s+([A-Za-z][\\w-]*)(?:\\s+([\\s\\S]*))?$/;\nconst TAIL_CATS = { flows: 1, firewall: 1, vpn_firewall: 1, cellular_firewall: 1, bridge_anyconnect_client_vpn_firewall: 1, l7_firewall: 1, urls: 1, 'ids-alerts': 1, security_event: 1 };\nconst FIREWALL_CATS = { flows: 1, firewall: 1, vpn_firewall: 1, cellular_firewall: 1, bridge_anyconnect_client_vpn_firewall: 1, l7_firewall:\
       \ 1, ip_flow_start: 1, ip_flow_end: 1 };\nconst PRIORITY = { '1': 'high', '2': 'medium', '3': 'low', '4': 'informational' };\nconst KV_RE = /([A-Za-z_][\\w.\\-]*)=('(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\"|\\S*)/g;\n\nfunction parseKV(s, out) {\n  KV_RE.lastIndex = 0;\n  let m;\n  while ((m = KV_RE.exec(s)) !== null) {\n    let v = m[2];\n    if (v.length >= 2 && (v[0] === \"'\" || v[0] === '\"') && v[v.length - 1] === v[0]) v = v.slice(1, -1);\n    out[m[1]] = v;\n    if (m[0].length === 0) KV_RE.lastIndex++;\n  }\n}\nfunction splitHostPort(v) {\n  if (typeof v !== 'string' || !v) return [undefined, undefined];\n  let m = v.match(/^\\[([^\\]]+)\\]:(\\d+)$/);\n  if (m) return [m[1], m[2]];\n  m = v.match(/^([^:]+):(\\d+)$/);\n  if (m) return [m[1], m[2]];\n  return [v, undefined];\n}\nfunction normAction(v) {\n  if (v === undefined || v === null) return undefined;\n  const s = String(v).toLowerCase();\n  if (s === '1' || s === 'allow' || s === 'allowed' || s === 'pass') return\
-      \ 'allowed';\n  if (s === '0' || s === 'deny' || s === 'denied' || s === 'block' || s === 'blocked' || s === 'drop' || s === 'rst') return 'blocked';\n  return s;\n}\n\nconst m = raw.match(HDR);\nconst p = {};\nconst c = {};\nconst tags = [];\nif (!m) {\n  __e.sourcetype = 'meraki:syslog';\n  __e.source = 'meraki:syslog:unparsed';\n  __e.__meraki = { kind: 'syslog', parse_error: 'header did not match Meraki syslog format' };\n} else {\n  if (m[1] !== undefined) p.syslog_pri = Number(m[1]);\n  p.meraki_epoch = m[2];\n  p.meraki_device = m[3];\n  p.meraki_category = m[4];\n  let body = m[5] || '';\n  const cat = p.meraki_category;\n\n  // first-token variants: \"flows allow src=..\", \"security_event ids_alerted signature=..\"\n  if (cat === 'security_event') {\n    const s = body.match(/^(\\S+)\\s*([\\s\\S]*)$/);\n    if (s) { p.meraki_subtype = s[1]; body = s[2]; }\n  } else if (FIREWALL_CATS[cat]) {\n    const s = body.match(/^(allow|deny|block)\\s+([\\s\\S]*)$/i);\n    if (s) { p.decision\
-      \ = s[1].toLowerCase(); body = s[2]; }\n  }\n\n  if (TAIL_CATS[cat]) {\n    const t = body.match(/^([\\s\\S]*?)\\s*\\b(pattern|request|message):\\s*([\\s\\S]*)$/);\n    if (t) {\n      body = t[1];\n      if (t[2] === 'pattern') {\n        const pm = t[3].match(/^(\\S+)\\s*([\\s\\S]*)$/);\n        if (pm) { p.pattern_decision = pm[1]; if (pm[2]) p.rule = pm[2]; }\n      } else if (t[2] === 'request') {\n        const rm = t[3].match(/^(\\S+)\\s+(\\S+)/);\n        if (rm) { p.request_method = rm[1]; p.request_url = rm[2]; } else { p.request = t[3]; }\n      } else {\n        p.message = t[3];\n      }\n    }\n    parseKV(body, p);\n  } else if (cat === 'events') {\n    let em;\n    if (/^type=/.test(body)) {\n      parseKV(body, p);\n      p.meraki_event_type = p.type;\n    } else if ((em = body.match(/^dhcp lease of ip (\\S+) from server mac (\\S+) for client mac (\\S+)(?: from router (\\S+))?(?: on subnet (\\S+))?(?: with dns (.+))?$/i))) {\n      p.meraki_event_type = 'dhcp_lease';\n\
-      \      p.client_ip = em[1]; p.server_mac = em[2]; p.client_mac = em[3];\n      if (em[4]) p.router = em[4]; if (em[5]) p.subnet = em[5]; if (em[6]) p.dns = em[6];\n    } else if ((em = body.match(/^dhcp no offers for mac (\\S+)/i))) {\n      p.meraki_event_type = 'dhcp_no_offers'; p.client_mac = em[1];\n    } else if ((em = body.match(/^port (\\S+) status changed from (\\S+) to (\\S+)/i))) {\n      p.meraki_event_type = 'port_status'; p.port = em[1]; p.old = em[2]; p['new'] = em[3];\n    } else if ((em = body.match(/^Site-to-site VPN:\\s*([\\s\\S]*)$/i))) {\n      p.meraki_event_type = 'site_to_site_vpn'; p.message = em[1];\n    } else if ((em = body.match(/^([a-z][a-z0-9_]+)\\s+([A-Za-z_][\\w.\\-]*=[\\s\\S]*)$/))) {\n      p.meraki_event_type = em[1];\n      parseKV(em[2], p);\n    } else {\n      p.message = body;\n    }\n  } else if (cat === 'airmarshal_events' || cat === 'ip_flow_start' || cat === 'ip_flow_end') {\n    parseKV(body, p);\n    if (p.type !== undefined) p.meraki_event_type\
-      \ = p.type;\n  } else {\n    // anyconnect_vpn_*, client_vpn, unknown roles: keep text, still lift k=v pairs\n    p.message = body;\n    const kv = {};\n    parseKV(body, kv);\n    const ks = Object.keys(kv);\n    for (let i = 0; i < ks.length; i++) { if (p[ks[i]] === undefined) p[ks[i]] = kv[ks[i]]; }\n  }\n\n  // ---- CIM normalisation ---------------------------------------------------------\n  const src = splitHostPort(p.src);\n  const dst = splitHostPort(p.dst);\n  if (src[0] !== undefined) c.src_ip = src[0];\n  if (dst[0] !== undefined) c.dest_ip = dst[0];\n  c.src_port = p.sport !== undefined ? p.sport : src[1];\n  c.dest_port = p.dport !== undefined ? p.dport : dst[1];\n  if (p.mac) c.src_mac = String(p.mac).toLowerCase();\n  if (p.client_mac) c.src_mac = String(p.client_mac).toLowerCase();\n  if (p.client_ip) c.src_ip = p.client_ip;\n  if (p.protocol) { c.transport = String(p.protocol).toLowerCase().replace(/\\/ip$/, ''); c.protocol = 'ip'; }\n  if (p.translated_src_ip) c.src_translated_ip\
-      \ = p.translated_src_ip;\n  if (p.translated_port) c.src_translated_port = p.translated_port;\n  if (p.sent_bytes !== undefined) c.bytes_out = p.sent_bytes;\n  if (p.received_bytes !== undefined) c.bytes_in = p.received_bytes;\n  c.dvc = p.meraki_device;\n  c.vendor_product = 'Cisco Meraki';\n  c.vendor = 'Cisco';\n  c.product = 'Meraki';\n\n  if (FIREWALL_CATS[cat]) {\n    c.action = normAction(p.decision !== undefined ? p.decision : p.pattern_decision);\n    if (cat === 'ip_flow_start' || cat === 'ip_flow_end') c.action = c.action || 'allowed';\n    if (p.rule) c.rule = p.rule;\n    tags.push('network', 'communicate');\n  } else if (cat === 'urls') {\n    c.url = p.request_url; c.http_method = p.request_method; c.http_user_agent = p.agent;\n    c.action = 'allowed';\n    tags.push('web', 'proxy');\n  } else if (cat === 'ids-alerts' || (cat === 'security_event' && p.meraki_subtype === 'ids_alerted')) {\n    c.signature_id = p.signature; c.signature = p.message;\n    c.severity = PRIORITY[p.priority]\
-      \ || 'high';\n    c.action = normAction(p.decision);\n    if (p.direction) c.direction = p.direction;\n    if (p.dhost) c.dest_mac = String(p.dhost).toLowerCase();\n    tags.push('ids', 'attack');\n  } else if (cat === 'security_event') {\n    // security_filtering_file_scanned / security_filtering_disposition_change\n    c.url = p.url; c.file_hash = p.sha256; c.file_name = p.name; c.signature = p.disposition;\n    c.action = normAction(p.action);\n    tags.push('malware', 'attack');\n  } else if (cat === 'airmarshal_events') {\n    c.signature = p.type; c.ssid = p.ssid; c.bssid = p.bssid; c.signal_strength = p.rssi; c.channel = p.channel;\n    c.src_mac = p.src ? String(p.src).toLowerCase() : undefined;\n    c.src_ip = undefined;\n    tags.push('alert');\n  } else if (cat === 'events') {\n    const et = p.meraki_event_type || '';\n    if (/^(8021x_|wpa_|splash_)/.test(et) || et === 'association' || et === 'disassociation') {\n      c.user = p.identity; c.action = /failure|fail|deauth|disassociation/.test(et)\
-      \ ? 'failure' : 'success';\n      c.app = 'Cisco Meraki';\n      tags.push('authentication');\n    } else if (et === 'dhcp_lease') {\n      c.dest_mac = p.server_mac ? String(p.server_mac).toLowerCase() : undefined; c.lease_scope = p.subnet; c.action = 'added';\n      tags.push('network', 'session');\n    } else if (et === 'content_filtering_block') {\n      c.url = p.url; c.category = p.category0; c.action = 'blocked';\n      tags.push('web', 'proxy');\n    } else {\n      tags.push('change');\n    }\n    if (et) c.meraki_event_type = et;\n  }\n  if (tags.length) c.tag = tags;\n  const ck = Object.keys(c);\n  for (let i = 0; i < ck.length; i++) { if (c[ck[i]] === undefined || c[ck[i]] === null || c[ck[i]] === '') delete c[ck[i]]; }\n\n  // ---- metadata ---------------------------------------------------------------------\n  __e._time = Number(p.meraki_epoch);\n  __e.host = String(p.meraki_device).toLowerCase();\n  __e.sourcetype = 'meraki:syslog';\n  __e.source = 'meraki:syslog:'\
-      \ + cat;\n  if (__e.__cfg_index) __e.index = __e.__cfg_index;\n\n  const drop = String(__e.__cfg_syslog_drop || '').split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x; });\n  if (drop.indexOf(cat) !== -1) __e.__meraki_drop = 'category_filtered';\n\n  __e.__meraki = { kind: 'syslog', category: cat, subtype: p.meraki_subtype, event_type: p.meraki_event_type, fields: p, cim: c };\n  if (__e.__cfg_output_mode === 'structured') {\n    const out = {};\n    const pk = Object.keys(p);\n    for (let i = 0; i < pk.length; i++) out[pk[i]] = p[pk[i]];\n    out.cim = c;\n    out.original_message = raw;\n    __e._raw = JSON.stringify(out);\n  }\n}\n"
+      \ 'allowed';\n  if (s === '0' || s === 'deny' || s === 'denied' || s === 'block' || s === 'blocked' || s === 'drop' || s === 'rst') return 'blocked';\n  return s;\n}\n\nconst m = raw.match(HDR);\nconst p = {};\nconst c = {};\nconst tags = [];\nif (!m) {\n  __e.sourcetype = 'meraki:syslog';\n  __e.source = 'meraki:syslog:unparsed';\n  __e.__meraki = { kind: 'syslog', tier: 'security', parse_error: 'header did not match Meraki syslog format', record: { original_message: raw } };\n} else {\n  if (m[1] !== undefined) p.syslog_pri = Number(m[1]);\n  p.meraki_epoch = m[2];\n  p.meraki_device = m[3];\n  p.meraki_category = m[4];\n  let body = m[5] || '';\n  const cat = p.meraki_category;\n\n  // first-token variants: \"flows allow src=..\", \"security_event ids_alerted signature=..\"\n  if (cat === 'security_event') {\n    const s = body.match(/^(\\S+)\\s*([\\s\\S]*)$/);\n    if (s) { p.meraki_subtype = s[1]; body = s[2]; }\n  } else if (FIREWALL_CATS[cat]) {\n    const s = body.match(/^(allow|deny|block)\\\
+      s+([\\s\\S]*)$/i);\n    if (s) { p.decision = s[1].toLowerCase(); body = s[2]; }\n  }\n\n  if (TAIL_CATS[cat]) {\n    const t = body.match(/^([\\s\\S]*?)\\s*\\b(pattern|request|message):\\s*([\\s\\S]*)$/);\n    if (t) {\n      body = t[1];\n      if (t[2] === 'pattern') {\n        const pm = t[3].match(/^(\\S+)\\s*([\\s\\S]*)$/);\n        if (pm) { p.pattern_decision = pm[1]; if (pm[2]) p.rule = pm[2]; }\n      } else if (t[2] === 'request') {\n        const rm = t[3].match(/^(\\S+)\\s+(\\S+)/);\n        if (rm) { p.request_method = rm[1]; p.request_url = rm[2]; } else { p.request = t[3]; }\n      } else {\n        p.message = t[3];\n      }\n    }\n    parseKV(body, p);\n  } else if (cat === 'events') {\n    let em;\n    if (/^type=/.test(body)) {\n      parseKV(body, p);\n      p.meraki_event_type = p.type;\n    } else if ((em = body.match(/^dhcp lease of ip (\\S+) from server mac (\\S+) for client mac (\\S+)(?: from router (\\S+))?(?: on subnet (\\S+))?(?: with dns (.+))?$/i)))\
+      \ {\n      p.meraki_event_type = 'dhcp_lease';\n      p.client_ip = em[1]; p.server_mac = em[2]; p.client_mac = em[3];\n      if (em[4]) p.router = em[4]; if (em[5]) p.subnet = em[5]; if (em[6]) p.dns = em[6];\n    } else if ((em = body.match(/^dhcp no offers for mac (\\S+)/i))) {\n      p.meraki_event_type = 'dhcp_no_offers'; p.client_mac = em[1];\n    } else if ((em = body.match(/^port (\\S+) status changed from (\\S+) to (\\S+)/i))) {\n      p.meraki_event_type = 'port_status'; p.port = em[1]; p.old = em[2]; p['new'] = em[3];\n    } else if ((em = body.match(/^Site-to-site VPN:\\s*([\\s\\S]*)$/i))) {\n      p.meraki_event_type = 'site_to_site_vpn'; p.message = em[1];\n    } else if ((em = body.match(/^([a-z][a-z0-9_]+)\\s+([A-Za-z_][\\w.\\-]*=[\\s\\S]*)$/))) {\n      p.meraki_event_type = em[1];\n      parseKV(em[2], p);\n    } else {\n      p.message = body;\n    }\n  } else if (cat === 'airmarshal_events' || cat === 'ip_flow_start' || cat === 'ip_flow_end') {\n    parseKV(body,\
+      \ p);\n    if (p.type !== undefined) p.meraki_event_type = p.type;\n  } else {\n    // anyconnect_vpn_*, client_vpn, unknown roles: keep text, still lift k=v pairs\n    p.message = body;\n    const kv = {};\n    parseKV(body, kv);\n    const ks = Object.keys(kv);\n    for (let i = 0; i < ks.length; i++) { if (p[ks[i]] === undefined) p[ks[i]] = kv[ks[i]]; }\n  }\n\n  // ---- CIM normalisation ---------------------------------------------------------\n  const src = splitHostPort(p.src);\n  const dst = splitHostPort(p.dst);\n  if (src[0] !== undefined) c.src_ip = src[0];\n  if (dst[0] !== undefined) c.dest_ip = dst[0];\n  c.src_port = p.sport !== undefined ? p.sport : src[1];\n  c.dest_port = p.dport !== undefined ? p.dport : dst[1];\n  if (p.mac) c.src_mac = String(p.mac).toLowerCase();\n  if (p.client_mac) c.src_mac = String(p.client_mac).toLowerCase();\n  if (p.client_ip) c.src_ip = p.client_ip;\n  if (p.protocol) { c.transport = String(p.protocol).toLowerCase().replace(/\\/ip$/, '');\
+      \ c.protocol = 'ip'; }\n  if (p.translated_src_ip) c.src_translated_ip = p.translated_src_ip;\n  if (p.translated_port) c.src_translated_port = p.translated_port;\n  if (p.sent_bytes !== undefined) c.bytes_out = p.sent_bytes;\n  if (p.received_bytes !== undefined) c.bytes_in = p.received_bytes;\n  c.dvc = p.meraki_device;\n  c.vendor_product = 'Cisco Meraki';\n  c.vendor = 'Cisco';\n  c.product = 'Meraki';\n\n  if (FIREWALL_CATS[cat]) {\n    c.action = normAction(p.decision !== undefined ? p.decision : p.pattern_decision);\n    if (cat === 'ip_flow_start' || cat === 'ip_flow_end') c.action = c.action || 'allowed';\n    if (p.rule) c.rule = p.rule;\n    tags.push('network', 'communicate');\n  } else if (cat === 'urls') {\n    c.url = p.request_url; c.http_method = p.request_method; c.http_user_agent = p.agent;\n    c.action = 'allowed';\n    tags.push('web', 'proxy');\n  } else if (cat === 'ids-alerts' || (cat === 'security_event' && p.meraki_subtype === 'ids_alerted')) {\n    c.signature_id\
+      \ = p.signature; c.signature = p.message;\n    c.severity = PRIORITY[p.priority] || 'high';\n    c.action = normAction(p.decision);\n    if (p.direction) c.direction = p.direction;\n    if (p.dhost) c.dest_mac = String(p.dhost).toLowerCase();\n    tags.push('ids', 'attack');\n  } else if (cat === 'security_event') {\n    // security_filtering_file_scanned / security_filtering_disposition_change\n    c.url = p.url; c.file_hash = p.sha256; c.file_name = p.name; c.signature = p.disposition;\n    c.action = normAction(p.action);\n    tags.push('malware', 'attack');\n  } else if (cat === 'airmarshal_events') {\n    c.signature = p.type; c.ssid = p.ssid; c.bssid = p.bssid; c.signal_strength = p.rssi; c.channel = p.channel;\n    c.src_mac = p.src ? String(p.src).toLowerCase() : undefined;\n    c.src_ip = undefined;\n    tags.push('alert');\n  } else if (cat === 'events') {\n    const et = p.meraki_event_type || '';\n    if (/^(8021x_|wpa_|splash_)/.test(et) || et === 'association' || et ===\
+      \ 'disassociation') {\n      c.user = p.identity; c.action = /failure|fail|deauth|disassociation/.test(et) ? 'failure' : 'success';\n      c.app = 'Cisco Meraki';\n      tags.push('authentication');\n    } else if (et === 'dhcp_lease') {\n      c.dest_mac = p.server_mac ? String(p.server_mac).toLowerCase() : undefined; c.lease_scope = p.subnet; c.action = 'added';\n      tags.push('network', 'session');\n    } else if (et === 'content_filtering_block') {\n      c.url = p.url; c.category = p.category0; c.action = 'blocked';\n      tags.push('web', 'proxy');\n    } else {\n      tags.push('change');\n    }\n    if (et) c.meraki_event_type = et;\n  }\n  if (tags.length) c.tag = tags;\n  const ck = Object.keys(c);\n  for (let i = 0; i < ck.length; i++) { if (c[ck[i]] === undefined || c[ck[i]] === null || c[ck[i]] === '') delete c[ck[i]]; }\n\n  // ---- metadata ---------------------------------------------------------------------\n  __e._time = Number(p.meraki_epoch);\n  __e.host = String(p.meraki_device).toLowerCase();\n\
+      \  __e.sourcetype = 'meraki:syslog';\n  __e.source = 'meraki:syslog:' + cat;\n\n  const drop = String(__e.__cfg_syslog_drop || '').split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x; });\n  if (drop.indexOf(cat) !== -1) __e.__meraki_drop = 'category_filtered';\n\n  // record = what the `structured` destination profile serialises; _raw stays the original line\n  const rec = {};\n  const pk = Object.keys(p);\n  for (let i = 0; i < pk.length; i++) rec[pk[i]] = p[pk[i]];\n  rec.original_message = raw;\n  __e.__meraki = { kind: 'syslog', tier: 'security', category: cat, subtype: p.meraki_subtype, event_type: p.meraki_event_type, fields: p, record: rec, cim: c };\n}\n"
     maxNumOfIterations: 20000
     activityLogSampleRate: 1
 - id: drop
@@ -43,3 +41,142 @@ functions:
   disabled: false
   description: Drop roles listed in meraki_syslog_drop_categories.
   conf: {}
+- id: eval
+  filter: 'true'
+  disabled: false
+  description: Destination profiles, reduction toggles and SecOps settings.
+  conf:
+    add:
+    - name: __cfg_dest
+      value: '({splunk: {enabled: C.vars.meraki_dest_splunk_enabled, tiers: C.vars.meraki_dest_splunk_tiers, reduce: C.vars.meraki_reduce_splunk}, secops: {enabled: C.vars.meraki_dest_secops_enabled, tiers: C.vars.meraki_dest_secops_tiers, reduce: C.vars.meraki_reduce_secops}, archive: {enabled: C.vars.meraki_dest_archive_enabled, tiers: C.vars.meraki_dest_archive_tiers, reduce: ''''}, structured: {enabled: C.vars.meraki_dest_structured_enabled, tiers: C.vars.meraki_dest_structured_tiers, reduce: C.vars.meraki_reduce_structured}})'
+    - name: __cfg_index
+      value: C.vars.meraki_index || ''
+    - name: __cfg_known_good
+      value: C.vars.meraki_known_good_destinations || ''
+    - name: __cfg_secops_log_type
+      value: C.vars.meraki_secops_log_type || 'CISCO_MERAKI'
+    - name: __cfg_secops_namespace
+      value: C.vars.meraki_secops_namespace || ''
+- id: code
+  filter: 'true'
+  disabled: false
+  description: Pick destination profiles by enablement + tier.
+  conf:
+    code: "// tail / fan-out: decide which destination profiles get a copy of this event.\n// A profile gets the event when it is enabled and its tier list contains the event's\n// tier (security | operational | inventory, or *). The Unroll that follows creates one\n// copy per profile, tagged __meraki_dest; an event no profile wants is dropped here.\nconst PROFILES = ['splunk', 'secops', 'archive', 'structured'];\nconst m = __e.__meraki || {};\nconst tier = m.tier || 'operational';\nconst cfg = __e.__cfg_dest || {};\nconst dests = [];\nfor (let i = 0; i < PROFILES.length; i++) {\n  const p = cfg[PROFILES[i]];\n  if (!p || String(p.enabled).toLowerCase() !== 'true') continue;\n  const tiers = String(p.tiers || '').split(',').map(function (s) { return s.trim(); });\n  if (tiers.indexOf('*') !== -1 || tiers.indexOf(tier) !== -1) dests.push(PROFILES[i]);\n}\n__e.__meraki_dests = dests;\n"
+    maxNumOfIterations: 20000
+    activityLogSampleRate: 1
+- id: unroll
+  filter: Array.isArray(__meraki_dests)
+  disabled: false
+  description: One copy per destination profile (none wanted = dropped).
+  conf:
+    srcExpr: __meraki_dests
+    dstField: __meraki_dest
+- id: code
+  filter: 'true'
+  disabled: false
+  description: Per-destination opt-in reduction (archive is never reduced).
+  conf:
+    code: "// tail / reduction: per-destination, opt-in data reduction.\n// Toggles come from meraki_reduce_<dest> (comma list). The `archive` profile is never\n// reduced -- it is the full-fidelity copy that makes reduction elsewhere defensible.\n//\n//   strip_nulls            API/webhook JSON: remove null / \"\" / [] / {} values           (lossless)\n//   inventory_changes_only inventory tier: emit a record only when it changed (24h)      (lossless*)\n//   dedupe_airmarshal      one event per rogue BSSID/SSID per hour                       (lossless*)\n//   dedupe_urls            one urls event per client+domain per 60s                       (lossy)\n//   drop_ip_flow_start     drop ip_flow_start, keep ip_flow_end                           (lossy)\n//   drop_wireless_assoc    drop MR association/disassociation events                     (lossy)\n//   drop_known_good_flows  drop ALLOWED flows to meraki_known_good_destinations          (lossy)\n//   flow_summary           ALLOWED flows\
+      \ -> 5-min summaries (not applied to secops)       (lossy)\n//   * suppression state is per worker process and resets on restart (fails open: re-emits)\nconst d = __e.__meraki_dest;\nconst m = __e.__meraki || {};\nconst prof = (__e.__cfg_dest || {})[d] || {};\nconst R = {};\nString(prof.reduce || '').split(',').forEach(function (s) { s = s.trim(); if (s) R[s] = true; });\n\nconst FW = { flows: 1, firewall: 1, vpn_firewall: 1, cellular_firewall: 1, bridge_anyconnect_client_vpn_firewall: 1, l7_firewall: 1, ip_flow_start: 1, ip_flow_end: 1 };\n\nfunction ip2n(ip) {\n  const p = String(ip).split('.');\n  if (p.length !== 4) return null;\n  let n = 0;\n  for (let i = 0; i < 4; i++) {\n    if (!/^\\d{1,3}$/.test(p[i])) return null;\n    const o = Number(p[i]);\n    if (o > 255) return null;\n    n = n * 256 + o;\n  }\n  return n;\n}\n// entries: \"10.0.0.53\", \"10.0.0.53:53\", \"10.0.0.0/8\", \"10.0.0.0/8:123\"\nfunction knownGood(ip, port) {\n  const n = ip2n(ip);\n  if (n === null) return\
+      \ false;\n  const list = String(__e.__cfg_known_good || '').split(',');\n  for (let i = 0; i < list.length; i++) {\n    const mm = list[i].trim().match(/^(\\d+\\.\\d+\\.\\d+\\.\\d+)(?:\\/(\\d{1,2}))?(?::(\\d+))?$/);\n    if (!mm) continue;\n    const base = ip2n(mm[1]);\n    const bits = mm[2] === undefined ? 32 : Number(mm[2]);\n    if (base === null || bits > 32) continue;\n    const size = Math.pow(2, 32 - bits);\n    if (Math.floor(n / size) === Math.floor(base / size) && (mm[3] === undefined || String(port) === mm[3])) return true;\n  }\n  return false;\n}\nfunction strip(v) {\n  if (Array.isArray(v)) {\n    const a = [];\n    for (let i = 0; i < v.length; i++) { const x = strip(v[i]); if (x !== undefined) a.push(x); }\n    return a.length ? a : undefined;\n  }\n  if (v !== null && typeof v === 'object') {\n    const o = {};\n    let any = false;\n    const ks = Object.keys(v);\n    for (let i = 0; i < ks.length; i++) { const x = strip(v[ks[i]]); if (x !== undefined) { o[ks[i]]\
+      \ = x; any = true; } }\n    return any ? o : undefined;\n  }\n  return v === null || v === '' ? undefined : v;\n}\n\nif (d && d !== 'archive') {\n  const kind = m.kind;\n  const cat = m.category;\n  const et = m.event_type;\n  const cim = m.cim || {};\n  const allowedFlow = kind === 'syslog' && FW[cat] && cim.action === 'allowed';\n\n  if (R.drop_ip_flow_start && kind === 'syslog' && cat === 'ip_flow_start') __e.__meraki_reduce_drop = 'drop_ip_flow_start';\n  if (R.drop_wireless_assoc && (et === 'association' || et === 'disassociation') &&\n      ((kind === 'syslog' && cat === 'events') || m.sourcetype === 'meraki:accesspoints')) __e.__meraki_reduce_drop = 'drop_wireless_assoc';\n  if (R.drop_known_good_flows && allowedFlow && knownGood(cim.dest_ip, cim.dest_port)) __e.__meraki_reduce_drop = 'drop_known_good_flows';\n\n  if (!__e.__meraki_reduce_drop) {\n    if (R.strip_nulls && (kind === 'api' || kind === 'webhook') && m.record) {\n      const s = strip(m.record) || {};\n      __e.__meraki_record_out\
+      \ = s;\n      __e._raw = JSON.stringify(s);\n    }\n    if (R.flow_summary && d !== 'secops' && allowedFlow) {\n      // consumed by the Aggregations function; group-by fields must be top-level\n      __e.meraki_agg_dest = d;\n      __e.meraki_agg_device = String(__e.host || '');\n      __e.meraki_agg_category = String(cat);\n      __e.meraki_agg_src_ip = String(cim.src_ip || '');\n      __e.meraki_agg_dest_ip = String(cim.dest_ip || '');\n      __e.meraki_agg_dest_port = String(cim.dest_port || '');\n      __e.meraki_agg_transport = String(cim.transport || '');\n      __e.meraki_agg_action = String(cim.action || '');\n    } else if (R.dedupe_urls && kind === 'syslog' && cat === 'urls') {\n      const hm = typeof cim.url === 'string' ? cim.url.match(/^[a-z][a-z0-9+.-]*:\\/\\/([^\\/:?#]+)/i) : null;\n      __e.__meraki_suppress = 'url';\n      __e.__meraki_suppress_key = [d, __e.host, cim.src_ip, hm ? hm[1].toLowerCase() : cim.url].join('|');\n    } else if (R.dedupe_airmarshal && (cat\
+      \ === 'airmarshal_events' || m.sourcetype === 'meraki:airmarshal')) {\n      const r = m.record || {};\n      __e.__meraki_suppress = 'airmarshal';\n      __e.__meraki_suppress_key = [d, __e.host, cim.bssid || r.ssid || cim.ssid].join('|');\n    } else if (R.inventory_changes_only && m.tier === 'inventory') {\n      __e.__meraki_suppress = 'inventory';\n      __e.__meraki_suppress_key = [d, m.sourcetype, __e._raw].join('|');\n    }\n  }\n}\n"
+    maxNumOfIterations: 20000
+    activityLogSampleRate: 1
+- id: drop
+  filter: __meraki_reduce_drop !== undefined
+  disabled: false
+  description: Apply drop_* reductions.
+  conf: {}
+- id: suppress
+  filter: __meraki_suppress === 'url'
+  disabled: false
+  description: 'dedupe_urls: one urls event per client+domain per 60s.'
+  conf:
+    keyExpr: C.Mask.md5(__meraki_suppress_key)
+    allow: 1
+    suppressPeriodSec: 60
+    dropEventsMode: true
+    maxCacheSize: 50000
+    cacheIdleTimeoutPeriods: 2
+    numEventsIdleTimeoutTrigger: 10000
+- id: suppress
+  filter: __meraki_suppress === 'airmarshal'
+  disabled: false
+  description: 'dedupe_airmarshal: one event per rogue BSSID/SSID per hour.'
+  conf:
+    keyExpr: C.Mask.md5(__meraki_suppress_key)
+    allow: 1
+    suppressPeriodSec: 3600
+    dropEventsMode: true
+    maxCacheSize: 50000
+    cacheIdleTimeoutPeriods: 2
+    numEventsIdleTimeoutTrigger: 10000
+- id: suppress
+  filter: __meraki_suppress === 'inventory'
+  disabled: false
+  description: 'inventory_changes_only: identical inventory record at most once per 24h.'
+  conf:
+    keyExpr: C.Mask.md5(__meraki_suppress_key)
+    allow: 1
+    suppressPeriodSec: 86400
+    dropEventsMode: true
+    maxCacheSize: 50000
+    cacheIdleTimeoutPeriods: 2
+    numEventsIdleTimeoutTrigger: 10000
+- id: aggregation
+  filter: meraki_agg_dest !== undefined
+  disabled: false
+  description: 'flow_summary: allowed flows -> 5-minute summaries per device/src/dst/port/proto.'
+  conf:
+    passthrough: false
+    preserveGroupBys: true
+    sufficientStatsOnly: false
+    metricsMode: false
+    timeWindow: 300s
+    cumulative: false
+    flushOnInputClose: true
+    lagTolerance: 30s
+    idleTimeLimit: 60s
+    aggregations:
+    - count().as(flow_count)
+    - min(_time).as(first_seen)
+    - max(_time).as(last_seen)
+    groupbys:
+    - meraki_agg_dest
+    - meraki_agg_device
+    - meraki_agg_category
+    - meraki_agg_src_ip
+    - meraki_agg_dest_ip
+    - meraki_agg_dest_port
+    - meraki_agg_transport
+    - meraki_agg_action
+- id: eval
+  filter: __cfg_dest === undefined
+  disabled: false
+  description: Re-load settings on aggregation output (aggregates carry no internal fields).
+  conf:
+    add:
+    - name: __cfg_dest
+      value: '({splunk: {enabled: C.vars.meraki_dest_splunk_enabled, tiers: C.vars.meraki_dest_splunk_tiers, reduce: C.vars.meraki_reduce_splunk}, secops: {enabled: C.vars.meraki_dest_secops_enabled, tiers: C.vars.meraki_dest_secops_tiers, reduce: C.vars.meraki_reduce_secops}, archive: {enabled: C.vars.meraki_dest_archive_enabled, tiers: C.vars.meraki_dest_archive_tiers, reduce: ''''}, structured: {enabled: C.vars.meraki_dest_structured_enabled, tiers: C.vars.meraki_dest_structured_tiers, reduce: C.vars.meraki_reduce_structured}})'
+    - name: __cfg_index
+      value: C.vars.meraki_index || ''
+    - name: __cfg_known_good
+      value: C.vars.meraki_known_good_destinations || ''
+    - name: __cfg_secops_log_type
+      value: C.vars.meraki_secops_log_type || 'CISCO_MERAKI'
+    - name: __cfg_secops_namespace
+      value: C.vars.meraki_secops_namespace || ''
+- id: code
+  filter: 'true'
+  disabled: false
+  description: Shape each copy for its destination profile.
+  conf:
+    code: "// tail / shape: make each copy right for its destination profile.\n//   splunk      _raw as the TA would write it; sourcetype/source/host; index from meraki_index\n//   secops      _raw as received (Google's CISCO_MERAKI parser needs the native format);\n//               __logType + optional __namespace for the Google SecOps destination\n//   archive     canonical event, untouched, full fidelity (object store / Cribl Lake / replay)\n//   structured  _raw = record JSON + `cim` object (Sentinel, Elastic, Dynatrace, OTel, ...)\n// Route the copies with an Output Router keyed on __meraki_dest (see README).\n\n// ---- flow summaries emitted by the Aggregations function ---------------------------\nif (__e.meraki_agg_dest !== undefined && __e.__meraki === undefined) {\n  const s = {\n    summary_type: 'meraki_flow_summary',\n    window_start: __e.first_seen,\n    window_end: __e.last_seen,\n    meraki_device: __e.meraki_agg_device,\n    meraki_category: __e.meraki_agg_category,\n \
+      \   src_ip: __e.meraki_agg_src_ip,\n    dest_ip: __e.meraki_agg_dest_ip,\n    dest_port: __e.meraki_agg_dest_port,\n    transport: __e.meraki_agg_transport,\n    action: __e.meraki_agg_action,\n    flow_count: __e.flow_count\n  };\n  const cim = {\n    src_ip: s.src_ip || undefined, dest_ip: s.dest_ip || undefined, dest_port: s.dest_port || undefined,\n    transport: s.transport || undefined, action: s.action || undefined, count: s.flow_count,\n    dvc: s.meraki_device, vendor_product: 'Cisco Meraki', vendor: 'Cisco', product: 'Meraki', tag: ['network', 'communicate']\n  };\n  __e.__meraki_dest = __e.meraki_agg_dest;\n  __e.__meraki = { kind: 'syslog_summary', tier: 'security', category: 'flowsummary', record: s, cim: cim };\n  __e._time = typeof __e.first_seen === 'number' ? __e.first_seen : __e._time;\n  __e.host = s.meraki_device;\n  __e.sourcetype = 'meraki:syslog:flowsummary';\n  __e.source = 'meraki:syslog:flowsummary';\n  __e._raw = JSON.stringify(s);\n  const ks = Object.keys(__e);\n\
+      \  for (let i = 0; i < ks.length; i++) {\n    if (/^meraki_agg_/.test(ks[i]) || ks[i] === 'flow_count' || ks[i] === 'first_seen' || ks[i] === 'last_seen' || ks[i] === 'endtime' || ks[i] === 'starttime') delete __e[ks[i]];\n  }\n}\n\n// ---- Suppress bookkeeping: never let it become an indexed field --------------------\nif (__e.suppressCount !== undefined) {\n  __e.__meraki_suppressed = __e.suppressCount;\n  delete __e.suppressCount;\n}\n\nconst dest = __e.__meraki_dest;\nconst mm = __e.__meraki || {};\nconst rec = __e.__meraki_record_out || mm.record;\n\nif (dest === 'splunk') {\n  if (__e.__cfg_index) __e.index = __e.__cfg_index;\n} else if (dest === 'secops') {\n  __e.__logType = __e.__cfg_secops_log_type || 'CISCO_MERAKI';\n  if (__e.__cfg_secops_namespace) __e.__namespace = __e.__cfg_secops_namespace;\n  delete __e.index;\n} else if (dest === 'structured') {\n  if (rec && typeof rec === 'object') {\n    const out = {};\n    const rk = Object.keys(rec);\n    for (let i = 0; i <\
+      \ rk.length; i++) out[rk[i]] = rec[rk[i]];\n    if (mm.cim) out.cim = mm.cim;\n    if (__e.__meraki_suppressed !== undefined) out.meraki_suppressed_count = __e.__meraki_suppressed;\n    __e._raw = JSON.stringify(out);\n  }\n  delete __e.index;\n} else if (dest === 'archive') {\n  // full fidelity: leave _raw and metadata exactly as parsed\n}\n"
+    maxNumOfIterations: 20000
+    activityLogSampleRate: 1

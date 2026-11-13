@@ -1,14 +1,14 @@
-// meraki_api / step 4: timestamp, host, metadata and (optionally) CIM enrichment.
-// CIM logic is a 1:1 port of Splunk_TA_cisco_meraki 3.5.0 default/props.conf
-// (EVAL-*, FIELDALIAS-*, LOOKUP-*) and tags.conf. In "structured" output mode the
-// result is written to a `cim` object inside _raw so it can never collide with
-// Meraki's own keys (the TA overwrites e.g. `type` at search time).
+// meraki_api / step 4: timestamp, host, metadata and CIM.
+// Destination-neutral: _raw stays the Meraki record (TA-identical); CIM goes to the
+// internal __meraki.cim and is only written into _raw by the `structured` destination
+// profile. CIM logic is a 1:1 port of Splunk_TA_cisco_meraki 3.5.0 default/props.conf
+// (EVAL-*, FIELDALIAS-*, LOOKUP-*) and tags.conf.
 const TIME_FIELDS = /*TIME_FIELDS*/{};
 const STATIC_TAGS = /*TAGS*/{};
+const TIERS = /*TIERS*/{};
 
 const j = __e.__json || {};
 const st = typeof __e.sourcetype === 'string' ? __e.sourcetype : 'meraki:unknown';
-const structured = __e.__cfg_output_mode === 'structured';
 
 function toEpoch(v) {
   if (v === undefined || v === null || v === '') return null;
@@ -84,7 +84,7 @@ if (__e.__cfg_org_id && st !== 'meraki:organizations' && j.organizationId === un
 
 // ---- CIM --------------------------------------------------------------------
 const c = {};
-if (structured) {
+{
   const t = j.type;
   const ed = j.eventData && typeof j.eventData === 'object' ? j.eventData : {};
   const dn = j.deviceName ? j.deviceName : j.deviceSerial;
@@ -272,12 +272,13 @@ if (structured) {
   if (tags.length) c.tag = tags;
   const keys = Object.keys(c);
   for (let i = 0; i < keys.length; i++) { if (c[keys[i]] === undefined || c[keys[i]] === null) delete c[keys[i]]; }
-  j.cim = c;
 }
 
-// ---- metadata + output --------------------------------------------------------
+// ---- metadata + canonical output ----------------------------------------------
 __e.host = pickHost(j) || __e.__cfg_api_host || 'api.meraki.com';
 __e.source = 'meraki:api:' + st.replace(/^meraki:/, '');
-if (__e.__cfg_index) __e.index = __e.__cfg_index;
-__e.__meraki = { kind: 'api', sourcetype: st, event_type: __e.__meraki_event_type, cim: structured ? c : undefined };
+__e.__meraki = {
+  kind: 'api', sourcetype: st, tier: TIERS[st] || 'operational',
+  event_type: __e.__meraki_event_type, record: j, cim: c
+};
 __e._raw = JSON.stringify(j);

@@ -23,7 +23,7 @@ import yaml
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOOLS = os.path.join(ROOT, "tools")
 PACK_ID = "cisco_meraki"
-PACK_VERSION = "1.0.0"
+PACK_VERSION = "2.0.0"
 PACK_DIR = os.path.join(ROOT, "pack", PACK_ID)
 DIST = os.path.join(ROOT, "dist")
 
@@ -189,6 +189,25 @@ ep("meraki:sensorreadingshistory", "/organizations/{organizationId}/sensor/readi
 
 assert len({e["st"] for e in E}) == len(E), "duplicate sourcetype"
 
+# Value tier per sourcetype -> drives which destination profiles receive it.
+#   security    : detections / investigations (SIEM, SecOps)
+#   operational : health + telemetry (observability tools, metrics)
+#   inventory   : slowly-changing asset context
+SECURITY = {"meraki:securityappliances", "meraki:accesspoints", "meraki:switches", "meraki:cameras",
+            "meraki:airmarshal", "meraki:organizationsecurity", "meraki:audit", "meraki:apirequestshistory"}
+INVENTORY = {"meraki:devices", "meraki:devicesavailabilities", "meraki:devicesuplinksaddressesbydevice",
+             "meraki:powermodulesstatusesbydevice", "meraki:organizationsnetworks", "meraki:organizations",
+             "meraki:switchportsbyswitch", "meraki:wirelessdeviceswirelesscontrollersbydevice",
+             "meraki:licensesoverview", "meraki:licensescotermlicenses", "meraki:licensessubscriptions",
+             "meraki:licensessubscriptionentitlements"}
+for _e in E:
+    _e["tier"] = "security" if _e["st"] in SECURITY else ("inventory" if _e["st"] in INVENTORY else "operational")
+assert SECURITY | INVENTORY <= {e["st"] for e in E}, "tier set names unknown sourcetype"
+
+DESTS = ["splunk", "secops", "archive", "structured"]
+REDUCTIONS = ["strip_nulls", "inventory_changes_only", "dedupe_airmarshal", "dedupe_urls",
+              "drop_ip_flow_start", "drop_wireless_assoc", "drop_known_good_flows", "flow_summary"]
+
 # --------------------------------------------------------------------------------------
 # helpers
 # --------------------------------------------------------------------------------------
@@ -320,7 +339,6 @@ def collector(e):
 
 def fn_eval_cfg(extra=()):
     fields = [
-        ("__cfg_output_mode", "C.vars.meraki_output_mode || 'raw'"),
         ("__cfg_index", "C.vars.meraki_index || ''"),
         ("__cfg_org_id", "C.vars.meraki_org_id || ''"),
         ("__cfg_api_host", "C.vars.meraki_api_host || 'api.meraki.com'"),
@@ -342,6 +360,49 @@ def fn_code(path, desc, replacements=None, iterations=20000):
 
 def fn_drop(flt, desc):
     return {"id": "drop", "filter": flt, "disabled": False, "description": desc, "conf": {}}
+
+
+def tail_functions():
+    """Shared fan-out -> reduce -> shape stages appended to every source pipeline."""
+    dest_cfg = "({" + ", ".join(
+        "%s: {enabled: C.vars.meraki_dest_%s_enabled, tiers: C.vars.meraki_dest_%s_tiers, reduce: %s}" % (
+            d, d, d, "''" if d == "archive" else "C.vars.meraki_reduce_%s" % d) for d in DESTS) + "})"
+    cfg = [
+        ("__cfg_dest", dest_cfg),
+        ("__cfg_index", "C.vars.meraki_index || ''"),
+        ("__cfg_known_good", "C.vars.meraki_known_good_destinations || ''"),
+        ("__cfg_secops_log_type", "C.vars.meraki_secops_log_type || 'CISCO_MERAKI'"),
+        ("__cfg_secops_namespace", "C.vars.meraki_secops_namespace || ''"),
+    ]
+    ev = lambda flt, desc: {"id": "eval", "filter": flt, "disabled": False, "description": desc,
+                            "conf": {"add": [{"name": n, "value": v} for n, v in cfg]}}
+    sup = lambda kind, period, desc: {
+        "id": "suppress", "filter": "__meraki_suppress === '%s'" % kind, "disabled": False, "description": desc,
+        "conf": {"keyExpr": "C.Mask.md5(__meraki_suppress_key)", "allow": 1, "suppressPeriodSec": period,
+                 "dropEventsMode": True, "maxCacheSize": 50000, "cacheIdleTimeoutPeriods": 2,
+                 "numEventsIdleTimeoutTrigger": 10000}}
+    return [
+        ev("true", "Destination profiles, reduction toggles and SecOps settings."),
+        fn_code("dest_select.js", "Pick destination profiles by enablement + tier."),
+        {"id": "unroll", "filter": "Array.isArray(__meraki_dests)", "disabled": False,
+         "description": "One copy per destination profile (none wanted = dropped).",
+         "conf": {"srcExpr": "__meraki_dests", "dstField": "__meraki_dest"}},
+        fn_code("reduce.js", "Per-destination opt-in reduction (archive is never reduced)."),
+        fn_drop("__meraki_reduce_drop !== undefined", "Apply drop_* reductions."),
+        sup("url", 60, "dedupe_urls: one urls event per client+domain per 60s."),
+        sup("airmarshal", 3600, "dedupe_airmarshal: one event per rogue BSSID/SSID per hour."),
+        sup("inventory", 86400, "inventory_changes_only: identical inventory record at most once per 24h."),
+        {"id": "aggregation", "filter": "meraki_agg_dest !== undefined", "disabled": False,
+         "description": "flow_summary: allowed flows -> 5-minute summaries per device/src/dst/port/proto.",
+         "conf": {"passthrough": False, "preserveGroupBys": True, "sufficientStatsOnly": False, "metricsMode": False,
+                  "timeWindow": "300s", "cumulative": False, "flushOnInputClose": True,
+                  "lagTolerance": "30s", "idleTimeLimit": "60s",
+                  "aggregations": ["count().as(flow_count)", "min(_time).as(first_seen)", "max(_time).as(last_seen)"],
+                  "groupbys": ["meraki_agg_dest", "meraki_agg_device", "meraki_agg_category", "meraki_agg_src_ip",
+                               "meraki_agg_dest_ip", "meraki_agg_dest_port", "meraki_agg_transport", "meraki_agg_action"]}},
+        ev("__cfg_dest === undefined", "Re-load settings on aggregation output (aggregates carry no internal fields)."),
+        fn_code("shape.js", "Shape each copy for its destination profile."),
+    ]
 
 
 def pipeline(functions, desc):
@@ -389,14 +450,29 @@ def build():
 
     # vars --------------------------------------------------------------------------
     var = lambda v, desc: {"type": "string", "lib": "custom", "value": v, "description": desc, "tags": "meraki"}
-    dump(d("default", "vars.yml"), {
+    vars_ = {
         "meraki_api_host": var("api.meraki.com", "Dashboard API host. Canada: api.meraki.ca, China: api.meraki.cn, India: api.meraki.in, US FedRAMP: api.gov-meraki.com"),
         "meraki_org_id": var("", "Meraki organization ID collected by the REST collectors (GET /api/v1/organizations)."),
-        "meraki_output_mode": var("raw", "raw = byte-for-byte Splunk TA compatible _raw (search-time CIM via the TA). structured = _raw JSON gains a `cim` object (for non-Splunk destinations)."),
-        "meraki_index": var("", "Optional destination index written to the `index` field. Empty = leave to Destination/Route."),
+        "meraki_index": var("", "splunk profile only: value written to `index`. Empty = leave to the Destination."),
         "meraki_webhook_shared_secret": var("", "Webhook shared secret configured on the Meraki HTTP server. When set, webhooks without a matching sharedSecret are dropped."),
-        "meraki_syslog_drop_categories": var("", "Comma-separated Meraki syslog roles to drop at the edge, e.g. flows,urls (largest volume roles)."),
-    })
+        "meraki_syslog_drop_categories": var("", "Comma-separated Meraki syslog roles dropped for ALL destinations (incl. archive), e.g. flows,urls."),
+        "meraki_known_good_destinations": var("", "drop_known_good_flows: comma list of IPv4[/cidr][:port], e.g. 10.0.0.53:53,10.0.0.0/8:123"),
+        "meraki_secops_log_type": var("CISCO_MERAKI", "secops profile: Google SecOps ingestion label (__logType)."),
+        "meraki_secops_namespace": var("", "secops profile: optional Google SecOps namespace (__namespace)."),
+    }
+    defaults = {
+        "splunk": ("true", "security,operational,inventory", ""),
+        "secops": ("false", "security", ""),
+        "archive": ("false", "*", None),
+        "structured": ("false", "security,operational,inventory", ""),
+    }
+    for dname in DESTS:
+        en, tiers, red = defaults[dname]
+        vars_["meraki_dest_%s_enabled" % dname] = var(en, "%s profile on/off (true|false)." % dname)
+        vars_["meraki_dest_%s_tiers" % dname] = var(tiers, "%s profile: tiers to receive (security,operational,inventory or *)." % dname)
+        if red is not None:
+            vars_["meraki_reduce_%s" % dname] = var(red, "%s profile: comma list of reductions: %s" % (dname, ", ".join(REDUCTIONS)))
+    dump(d("default", "vars.yml"), vars_)
 
     # breakers ------------------------------------------------------------------------
     dump(d("default", "breakers.yml"), {
@@ -433,7 +509,7 @@ def build():
     # pipelines -------------------------------------------------------------------------
     time_fields = {e["st"]: e["time_field"] for e in E if e["time_field"]}
     static_tags = {e["st"]: e["tags"] for e in E if e["tags"]}
-    lookup_filter = "__cfg_output_mode === 'structured' && __meraki_event_type !== undefined"
+    lookup_filter = "__meraki_event_type !== undefined"
     api_fns = [
         fn_eval_cfg(),
         fn_code("api_unwrap.js", "Normalise the page shape ([...], {items}, {events}, {...}) to an array in _raw."),
@@ -448,7 +524,7 @@ def build():
                                {"eventField": "__meraki_event_type", "lookupField": "meraki_event_type"}],
                   "outFields": [{"lookupField": k, "eventField": "__lk_" + k} for k in
                                 ["action", "change_type", "object", "object_category", "result", "object_attrs"]]}},
-        {"id": "lookup", "filter": "__cfg_output_mode === 'structured' && sourcetype === 'meraki:organizationsecurity' && __meraki_priority !== undefined",
+        {"id": "lookup", "filter": "sourcetype === 'meraki:organizationsecurity' && __meraki_priority !== undefined",
          "disabled": False, "description": "IDS priority -> severity (TA cisco_meraki_organizationsecurity_lookup).",
          "conf": {"file": "meraki_ids_priority.csv", "matchMode": "exact", "reloadPeriodSec": -1, "addToEvent": False,
                   "ignoreCase": False,
@@ -456,8 +532,9 @@ def build():
                   "outFields": [{"lookupField": "severity", "eventField": "__lk_severity"}]}},
         fn_code("api_normalize.js", "_time, host, organizationId, source/index and CIM (props.conf port).",
                 {"/*TIME_FIELDS*/{}": json.dumps(time_fields, sort_keys=True),
-                 "/*TAGS*/{}": json.dumps(static_tags, sort_keys=True)}, iterations=100000),
-    ]
+                 "/*TAGS*/{}": json.dumps(static_tags, sort_keys=True),
+                 "/*TIERS*/{}": json.dumps({e["st"]: e["tier"] for e in E}, sort_keys=True)}, iterations=100000),
+    ] + tail_functions()
     dump(d("default", "pipelines", "meraki_api", "conf.yml"),
          pipeline(api_fns, "Meraki Dashboard API records from the pack REST collectors (all meraki:* API sourcetypes)."))
 
@@ -465,13 +542,13 @@ def build():
         fn_eval_cfg([("__cfg_webhook_secret", "C.vars.meraki_webhook_shared_secret || ''")]),
         fn_code("webhook.js", "Unwrap, authenticate, strip secret, timestamp, CIM."),
         fn_drop("__meraki_drop !== undefined", "Drop webhooks that failed shared-secret validation."),
-    ], "Meraki Dashboard alert webhooks (default Meraki template or Splunk TA HEC template)."))
+    ] + tail_functions(), "Meraki Dashboard alert webhooks (default Meraki template or Splunk TA HEC template)."))
 
     dump(d("default", "pipelines", "meraki_syslog", "conf.yml"), pipeline([
         fn_eval_cfg([("__cfg_syslog_drop", "C.vars.meraki_syslog_drop_categories || ''")]),
         fn_code("syslog.js", "Parse Meraki syslog header, role, key=value body and tails; CIM normalise."),
         fn_drop("__meraki_drop !== undefined", "Drop roles listed in meraki_syslog_drop_categories."),
-    ], "Meraki syslog: flows, firewall, vpn_firewall, cellular_firewall, urls, ids-alerts, security_event, events, airmarshal_events, ip_flow_*."))
+    ] + tail_functions(), "Meraki syslog: flows, firewall, vpn_firewall, cellular_firewall, urls, ids-alerts, security_event, events, airmarshal_events, ip_flow_*."))
 
     # routes -------------------------------------------------------------------------------
     syslog_re = ("/^(?:<\\d{1,3}>)?[\\s\\S]{0,80}?\\b\\d{10}\\.\\d+\\s+\\S+\\s+(?:flows|urls|firewall|vpn_firewall|"
@@ -545,20 +622,20 @@ def build():
         sid = fn[:-5]
         body = json.dumps(events, indent=2)
         write_text(d("data", "samples", sid + ".json"), body + "\n")
-        samples_meta[sid] = {"sampleName": sid + ".json", "created": int(time.time() * 1000),
+        samples_meta[sid] = {"sampleName": sid + ".json", "created": 1763020800000,
                              "size": len(body), "numEvents": len(events), "tags": "meraki"}
     dump(d("default", "samples.yml"), samples_meta)
 
     shutil.copy(os.path.join(ROOT, "README.md"), d("README.md"))
 
     # mapping doc -------------------------------------------------------------------------
-    rows = ["| Collector | Sourcetype | Meraki API path | Time params | Schedule (window) | TA input |",
-            "|---|---|---|---|---|---|"]
+    rows = ["| Collector | Sourcetype | Tier | Meraki API path | Time params | Schedule (window) | TA input |",
+            "|---|---|---|---|---|---|---|"]
     for e in E:
         s = e["sched"]
         win = "snapshot" if e["time_mode"] is None else "%s → %s" % (s["earliest"], s["latest"])
-        rows.append("| `%s` | `%s` | `%s` | %s | `%s` (%s) | `%s` |" % (
-            collector_id(e), e["st"], e["path"] + ("?productType=" + e["product"] if e["time_mode"] == "events" else ""),
+        rows.append("| `%s` | `%s` | %s | `%s` | %s | `%s` (%s) | `%s` |" % (
+            collector_id(e), e["st"], e["tier"], e["path"] + ("?productType=" + e["product"] if e["time_mode"] == "events" else ""),
             e["time_mode"] or "-", s["cron"], win, e["ta_input"]))
     write_text(os.path.join(ROOT, "docs", "endpoint-mapping.md"),
                "# Endpoint mapping (generated by tools/build_pack.py)\n\n%d REST collectors, all disabled until "

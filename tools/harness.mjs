@@ -1,21 +1,25 @@
 // Minimal Cribl function emulator + assertions. Input: JSON bundle on stdin (see run_tests.py).
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 const B = JSON.parse(readFileSync(0, 'utf8'));
 let failures = 0, passes = 0;
 const ok = (cond, msg) => { if (cond) { passes++; } else { failures++; console.log('  FAIL: ' + msg); } };
 const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), `${msg} -> expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
 
-const mkC = (vars) => ({ vars });
+const md5 = (v) => createHash('md5').update(String(v)).digest('hex');
+const mkC = (vars) => ({ vars, Mask: { md5 } });
 // Cribl semantics: an unknown field name evaluates to undefined (no ReferenceError);
 // JS globals (JSON, Date, Array...) still resolve normally.
 const scope = (e) => new Proxy(e, { has: (t, k) => typeof k === 'string' && k !== 'C' && (k in t || !(k in globalThis)) });
 const expr = (src) => { const f = new Function('C', '__s', `with (__s) { return (${src}); }`); return (C, e) => f(C, scope(e)); };
 const truthy = (src, e, C) => { try { return !!expr(src)(C, e); } catch (err) { return false; } };
 
-function runFn(fn, events, C) {
+// state: per-runPack map, keyed by function object (Suppress caches are per function instance)
+function runFn(fn, events, C, state) {
   if (fn.disabled) return events;
   const out = [];
+  const aggIn = [];
   for (const e of events) {
     if (!truthy(fn.filter ?? 'true', e, C)) { out.push(e); continue; }
     switch (fn.id) {
@@ -38,7 +42,37 @@ function runFn(fn, events, C) {
         out.push(e); break;
       }
       case 'drop': break;
+      case 'suppress': {
+        // all test events fall inside one suppressPeriodSec window
+        const cache = state.get(fn) || new Map(); state.set(fn, cache);
+        const k = expr(fn.conf.keyExpr)(C, e);
+        const n = cache.get(k) || 0;
+        cache.set(k, n + 1);
+        if (n < fn.conf.allow) out.push(e); else if (!fn.conf.dropEventsMode) out.push(e);
+        break;
+      }
+      case 'aggregation': aggIn.push(e); break;
       default: throw new Error('harness does not emulate function ' + fn.id);
+    }
+  }
+  if (fn.id === 'aggregation' && aggIn.length) {
+    // tumbling-window emulation (flushOnInputClose): all test events share one window
+    const groups = new Map();
+    for (const e of aggIn) {
+      const key = JSON.stringify(fn.conf.groupbys.map(g => e[g]));
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(e);
+    }
+    for (const [, evs] of groups) {
+      const o = {};
+      if (fn.conf.preserveGroupBys) for (const g of fn.conf.groupbys) o[g] = evs[0][g];
+      for (const a of fn.conf.aggregations) {
+        const m = a.match(/^(\w+)\(([^)]*)\)\.as\((\w+)\)$/);
+        const vals = evs.map(e => e[m[2]]);
+        o[m[3]] = m[1] === 'count' ? evs.length : m[1] === 'min' ? Math.min(...vals) : m[1] === 'max' ? Math.max(...vals) : m[1] === 'sum' ? vals.reduce((x, y) => x + y, 0) : undefined;
+      }
+      o._time = o.first_seen;
+      out.push(o);
     }
   }
   return out;
@@ -46,26 +80,37 @@ function runFn(fn, events, C) {
 
 function runPack(events, varOverrides = {}) {
   const C = mkC({ ...B.vars, ...varOverrides });
+  const state = new Map();
   const results = [];
+  const batches = new Map();
   for (const ev of events) {
     const e = JSON.parse(JSON.stringify(ev));
     const route = B.routes.find(r => !r.disabled && truthy(r.filter, e, C));
-    if (route.pipeline === 'passthru') { e.__route = route.id; results.push(e); continue; }
-    let evs = [e];
-    for (const fn of B.pipelines[route.pipeline].functions) evs = runFn(fn, evs, C);
+    e.__route = route.id;
+    if (!batches.has(route)) batches.set(route, []);
+    batches.get(route).push(e);
+  }
+  for (const [route, batch] of batches) {
+    if (route.pipeline === 'passthru') { results.push(...batch); continue; }
+    let evs = batch;
+    for (const fn of B.pipelines[route.pipeline].functions) evs = runFn(fn, evs, C, state);
     for (const x of evs) { x.__route = route.id; results.push(x); }
   }
   return results;
 }
+const STRUCT = { meraki_dest_splunk_enabled: 'false', meraki_dest_structured_enabled: 'true' };
+const ALL = { meraki_dest_splunk_enabled: 'true', meraki_dest_secops_enabled: 'true', meraki_dest_archive_enabled: 'true', meraki_dest_structured_enabled: 'true' };
+const to = (out, d) => out.filter(e => e.__meraki_dest === d);
 const J = (e) => JSON.parse(e._raw);
 
 // ============================================================================ syslog
 console.log('syslog');
 {
-  const out = runPack(B.samples.meraki_syslog, { meraki_output_mode: 'structured', meraki_org_id: '123456' });
+  const out = runPack(B.samples.meraki_syslog, { ...STRUCT, meraki_org_id: '123456' });
   const by = (src) => out.filter(e => e.source === src);
   eq(out.filter(e => e.__route === 'meraki_syslog').length, 18, 'all lines from the pack syslog Source routed to meraki_syslog');
-  const junk = out.find(e => e._raw === 'this line is not meraki syslog at all');
+  const junk = out.find(e => e.source === 'meraki:syslog:unparsed');
+  eq(J(junk).original_message, 'this line is not meraki syslog at all', 'structured: unparsed line keeps original_message');
   eq([junk.source, junk.__meraki.parse_error], ['meraki:syslog:unparsed', 'header did not match Meraki syslog format'], 'unparseable line kept + flagged');
   // header detection when data arrives on a non-pack Source (no __meraki_kind)
   const untagged = runPack(B.samples.meraki_syslog.map(e => ({ _raw: e._raw, _time: e._time })));
@@ -151,7 +196,7 @@ console.log('webhook');
   eq(J(noSecret[1]).alertType, 'Uplink status changed', 'HEC envelope unwrapped');
   eq(J(noSecret[3]).alertId, '643451796765', 'pretty-printed body parsed');
 
-  const withSecret = runPack(s, { meraki_webhook_shared_secret: 's3cr3t', meraki_output_mode: 'structured' });
+  const withSecret = runPack(s, { meraki_webhook_shared_secret: 's3cr3t', ...STRUCT });
   eq(withSecret.length, 3, 'secret configured: wrong secret dropped, HEC envelope kept');
   eq(J(withSecret[0]).cim, { id: '643451796765', type: 'Uplink status changed', signature: 'Uplink status changed', dest: 'e0:cb:bc:00:00:01', dvc: 'MX84_HQ', severity: 'critical', vendor_product: 'Cisco Meraki', vendor: 'Cisco', product: 'Meraki', tag: ['alert'] }, 'webhook CIM (TA aliases)');
   const r = runPack([{ _raw: 'not json', __meraki_kind: 'webhook' }]);
@@ -161,7 +206,7 @@ console.log('webhook');
 // ============================================================================ API
 console.log('api');
 {
-  const out = runPack(B.samples.meraki_api_pages, { meraki_output_mode: 'structured', meraki_org_id: '123456' });
+  const out = runPack(B.samples.meraki_api_pages, { ...STRUCT, meraki_org_id: '123456' });
   const st = (s) => out.filter(e => e.sourcetype === s);
   ok(out.every(e => e.__route === 'meraki_api'), 'all API pages routed to meraki_api');
 
@@ -220,6 +265,132 @@ console.log('api');
   const raw = runPack(B.samples.meraki_api_pages.slice(6, 7), { meraki_org_id: '123456' });
   ok(!('cim' in J(raw[0])), 'raw mode: no cim object');
   eq(J(raw[0]).serial, 'Q2XX-AAAA-BBBB', 'raw mode: record intact');
+}
+
+// ============================================================================ destination profiles
+console.log('destinations');
+{
+  const sys = B.samples.meraki_syslog;
+  const api = B.samples.meraki_api_pages;
+  const wh = B.samples.meraki_webhook.slice(0, 1);
+
+  // defaults: splunk only, every tier
+  const def = runPack([...sys, ...api, ...wh], { meraki_org_id: '123456' });
+  const meraki = def.filter(e => e.__route !== 'meraki_unmatched');
+  ok(meraki.every(e => e.__meraki_dest === 'splunk'), 'default: only the splunk profile is enabled');
+  eq(to(def, 'splunk').filter(e => e.sourcetype === 'meraki:devices').length, 2, 'default: splunk gets inventory tier');
+
+  const all = runPack([...sys, ...api, ...wh], { ...ALL, meraki_org_id: '123456', meraki_index: 'netsec', meraki_secops_namespace: 'prod-ca' });
+  const nSys = sys.length; // 18 incl. unparsed line (still a security-tier syslog event)
+  eq(to(all, 'splunk').filter(e => e.sourcetype === 'meraki:syslog').length, nSys, 'fan-out: splunk copy per syslog line');
+  eq(to(all, 'archive').filter(e => e.sourcetype === 'meraki:syslog').length, nSys, 'fan-out: archive copy per syslog line');
+  eq(to(all, 'secops').filter(e => e.sourcetype === 'meraki:syslog').length, nSys, 'fan-out: secops copy per syslog line');
+
+  // splunk shape
+  const sp = to(all, 'splunk').find(e => e.source === 'meraki:syslog:flows');
+  eq([sp.index, sp._raw], ['netsec', sys[0]._raw], 'splunk: index set, _raw untouched');
+
+  // secops shape
+  const sec = to(all, 'secops');
+  ok(sec.every(e => e.__logType === 'CISCO_MERAKI' && e.__namespace === 'prod-ca' && e.index === undefined), 'secops: __logType + __namespace, no index');
+  eq(sec.find(e => e.source === 'meraki:syslog:urls')._raw, sys[4]._raw, 'secops: syslog sent in native format for the CISCO_MERAKI parser');
+  eq(sec.filter(e => e.sourcetype === 'meraki:devices' || e.sourcetype === 'meraki:licensesoverview').length, 0, 'secops: inventory not sent (security tier only)');
+  eq(sec.filter(e => e.sourcetype === 'meraki:organizationsecurity').length, 2, 'secops: API security tier sent');
+  eq(sec.filter(e => e.sourcetype === 'meraki:webhook').length, 1, 'secops: webhook sent');
+  ok(!('cim' in JSON.parse(sec.find(e => e.sourcetype === 'meraki:audit')._raw)), 'secops: API JSON without cim');
+
+  // structured + archive shape
+  const st = to(all, 'structured').find(e => e.sourcetype === 'meraki:audit');
+  eq([JSON.parse(st._raw).cim.user, st.index], ['jane.admin', undefined], 'structured: cim in _raw, no splunk index');
+  const ar = to(all, 'archive').find(e => e.sourcetype === 'meraki:audit');
+  ok(!('cim' in JSON.parse(ar._raw)) && ar.index === undefined, 'archive: canonical record, no index');
+
+  const none = runPack(sys, { meraki_dest_splunk_enabled: 'false' });
+  eq(none.filter(e => e.__route === 'meraki_syslog').length, 0, 'no profile enabled -> Meraki events dropped');
+  const tierFilter = runPack(api, { meraki_dest_splunk_tiers: 'security' });
+  ok(tierFilter.every(e => ['security'].includes(e.__meraki.tier)), 'splunk tier filter honoured');
+}
+
+// ============================================================================ reductions
+console.log('reductions');
+{
+  const L = (epoch, body) => ({ _raw: `<134>1 ${epoch} MX84_HQ ${body}`, _time: 1763020800, __meraki_kind: 'syslog' });
+  const flow = (i, dst = '8.8.8.8', dport = 53) => L(`17630209${String(i).padStart(2, '0')}.0`, `flows src=10.10.1.25 dst=${dst} mac=AA:BB:CC:11:22:33 protocol=udp sport=${50000 + i} dport=${dport} pattern: allow all`);
+  const deny = L('1763020950.0', 'flows src=10.10.1.25 dst=8.8.8.8 mac=AA:BB:CC:11:22:33 protocol=tcp sport=40000 dport=53 pattern: deny all');
+  const url = (i, u) => L(`17630209${String(i).padStart(2, '0')}.5`, `urls src=10.10.1.25:5${i}000 dst=93.184.216.34:443 mac=AA:BB:CC:11:22:33 request: GET ${u}`);
+  const am = (i) => L(`17630209${String(i).padStart(2, '0')}.7`, `airmarshal_events type=rogue_ssid_detected ssid='FreeWiFi' bssid='02:18:5A:AE:56:00' src='02:18:5A:AE:56:00' channel='157' rssi='2${i}'`);
+  const assoc = L('1763020960.0', "events type=association radio='0' vap='1' client_mac='F0:18:98:AA:BB:CC'");
+  const eap = L('1763020961.0', "events type=8021x_eap_success radio='1' vap='2' client_mac='F0:18:98:AA:BB:CC' identity='bob'");
+  const ifs = L('1763020962.0', 'ip_flow_start src=10.10.1.25 dst=1.1.1.1 protocol=tcp sport=1 dport=443');
+  const ife = L('1763020963.0', 'ip_flow_end src=10.10.1.25 dst=1.1.1.1 protocol=tcp sport=1 dport=443');
+
+  const R = (list, extra = {}) => ({ meraki_dest_archive_enabled: 'true', meraki_reduce_splunk: list, ...extra });
+
+  // drop_ip_flow_start
+  let o = runPack([ifs, ife], R('drop_ip_flow_start'));
+  eq(to(o, 'splunk').map(e => e.source), ['meraki:syslog:ip_flow_end'], 'drop_ip_flow_start: start dropped, end kept');
+  eq(to(o, 'archive').length, 2, 'archive never reduced');
+
+  // drop_wireless_assoc
+  o = runPack([assoc, eap], R('drop_wireless_assoc'));
+  eq(to(o, 'splunk').map(e => e.__meraki.event_type), ['8021x_eap_success'], 'drop_wireless_assoc: association dropped, 802.1X kept');
+
+  // drop_known_good_flows
+  o = runPack([flow(1), flow(2, '1.1.1.1', 443), deny], R('drop_known_good_flows', { meraki_known_good_destinations: '8.8.8.0/24:53, 9.9.9.9' }));
+  eq(to(o, 'splunk').map(e => e.__meraki.cim.dest_ip + ':' + e.__meraki.cim.action), ['1.1.1.1:allowed', '8.8.8.8:blocked'], 'known_good: allowed flow to 8.8.8.0/24:53 dropped, deny to same dest kept');
+
+  // dedupe_urls
+  o = runPack([url(1, 'https://www.example.com/a'), url(2, 'https://www.example.com/b'), url(3, 'https://WWW.EXAMPLE.COM/c'), url(4, 'https://other.example.org/')], R('dedupe_urls'));
+  eq(to(o, 'splunk').map(e => e.__meraki.cim.url), ['https://www.example.com/a', 'https://other.example.org/'], 'dedupe_urls: one per client+domain (case-insensitive)');
+  eq(to(o, 'archive').length, 4, 'dedupe_urls: archive keeps all 4');
+
+  // dedupe_airmarshal (syslog + API)
+  o = runPack([am(1), am(2), am(3)], R('dedupe_airmarshal'));
+  eq(to(o, 'splunk').length, 1, 'dedupe_airmarshal: repeated BSSID collapsed');
+  const amApi = B.samples.meraki_api_pages.find(e => e.sourcetype === 'meraki:airmarshal');
+  o = runPack([amApi, amApi], R('dedupe_airmarshal'));
+  eq(to(o, 'splunk').length, 1, 'dedupe_airmarshal: API SSID repeated across polls collapsed');
+
+  // inventory_changes_only
+  const dev = B.samples.meraki_api_pages.find(e => e.sourcetype === 'meraki:devices');
+  const changed = JSON.parse(JSON.stringify(dev));
+  const recs = JSON.parse(changed._raw); recs[1].firmware = 'wireless-31-1-6'; changed._raw = JSON.stringify(recs);
+  o = runPack([dev, dev, changed], R('inventory_changes_only'));
+  eq(to(o, 'splunk').length, 3, 'inventory_changes_only: 2 new + 1 changed record of 6 polled');
+  eq(to(o, 'archive').length, 6, 'inventory_changes_only: archive keeps every poll');
+  const sec = B.samples.meraki_api_pages.find(e => e.sourcetype === 'meraki:organizationsecurity');
+  eq(to(runPack([sec, sec], R('inventory_changes_only')), 'splunk').length, 4, 'inventory_changes_only never touches security tier');
+
+  // strip_nulls
+  o = runPack([dev], R('strip_nulls'));
+  const sp = to(o, 'splunk').map(J), ar = to(o, 'archive').map(J);
+  ok(!('lanIp' in sp[0]) && !('address' in sp[0]) && !('notes' in sp[0]), 'strip_nulls: null and "" removed');
+  eq(sp[0].tags, ['hq'], 'strip_nulls: non-empty values kept');
+  ok('lanIp' in ar[0], 'strip_nulls: archive copy untouched');
+  ok(JSON.stringify(sp).length < JSON.stringify(ar).length, 'strip_nulls: smaller payload');
+
+  // flow_summary
+  const flows5 = [1, 2, 3, 4, 5].map(i => flow(i));
+  o = runPack([...flows5, deny], R('flow_summary', { meraki_dest_secops_enabled: 'true', meraki_reduce_secops: 'flow_summary' }));
+  const spl = to(o, 'splunk');
+  const sum = spl.find(e => e.sourcetype === 'meraki:syslog:flowsummary');
+  ok(sum, 'flow_summary: summary event emitted');
+  eq([J(sum).flow_count, J(sum).dest_ip, J(sum).dest_port, J(sum).src_ip, sum.host], [5, '8.8.8.8', '53', '10.10.1.25', 'mx84_hq'], 'flow_summary: 5 allowed flows -> 1 summary');
+  eq([J(sum).window_start, J(sum).window_end, sum._time], [1763020901, 1763020905, 1763020901], 'flow_summary: window bounds');
+  ok(!Object.keys(sum).some(k => /^meraki_agg_|^flow_count$|^first_seen$/.test(k)), 'flow_summary: no temp fields leak as indexed fields');
+  eq(spl.filter(e => e.sourcetype === 'meraki:syslog').map(e => e.__meraki.cim.action), ['blocked'], 'flow_summary: denied flow kept verbatim');
+  eq(to(o, 'secops').length, 6, 'flow_summary: ignored for secops (parser needs native lines)');
+  eq(to(o, 'archive').length, 6, 'flow_summary: archive keeps every flow');
+  const sumStruct = to(runPack(flows5, { ...STRUCT, meraki_reduce_structured: 'flow_summary' }), 'structured');
+  eq([sumStruct.length, JSON.parse(sumStruct[0]._raw).cim.count], [1, 5], 'flow_summary: structured profile gets summary with cim.count');
+
+  // combined volume illustration on the bundled samples (not representative of production mix)
+  const bytes = (evs) => evs.reduce((n, e) => n + String(e._raw).length, 0);
+  const input = [...B.samples.meraki_syslog, ...B.samples.meraki_api_pages, ...B.samples.meraki_webhook.slice(0, 1), ...flows5, url(6, 'https://www.example.com/x'), url(7, 'https://www.example.com/y'), dev, dev];
+  const full = runPack(input, { meraki_dest_archive_enabled: 'true', meraki_reduce_splunk: 'strip_nulls,inventory_changes_only,dedupe_airmarshal,dedupe_urls,drop_ip_flow_start,drop_wireless_assoc,flow_summary' });
+  const a = bytes(to(full, 'archive')), s2 = bytes(to(full, 'splunk'));
+  console.log(`  info: sample mix  archive ${a} B  ->  splunk ${s2} B  (${Math.round(100 - 100 * s2 / a)}% reduction)`);
+  ok(s2 < a, 'all reductions shrink the splunk copy');
 }
 
 // ============================================================================ collector expressions

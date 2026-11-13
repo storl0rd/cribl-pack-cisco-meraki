@@ -1,0 +1,45 @@
+id: default
+groups: {}
+comments: []
+routes:
+- id: meraki_webhook
+  name: Meraki webhook
+  final: true
+  disabled: false
+  pipeline: meraki_webhook
+  output: default
+  enableOutputExpression: false
+  clones: []
+  description: Pack webhook Source, or any HTTP/HEC Source carrying Meraki alert JSON.
+  filter: __meraki_kind === 'webhook' || sourcetype === 'meraki:webhook' || (!__meraki_kind && typeof _raw === 'string' && _raw.indexOf('"alertType"') !== -1 && _raw.indexOf('"occurredAt"') !== -1)
+- id: meraki_api
+  name: Meraki Dashboard API
+  final: true
+  disabled: false
+  pipeline: meraki_api
+  output: default
+  enableOutputExpression: false
+  clones: []
+  description: Pack REST collectors (tagged with a meraki:* sourcetype).
+  filter: __meraki_kind === 'api' || ["meraki:accesspoints", "meraki:airmarshal", "meraki:apirequestshistory", "meraki:apirequestsoverview", "meraki:apirequestsresponsecodes", "meraki:appliancesdwanstatistics", "meraki:appliancesdwanstatuses", "meraki:assurancealerts", "meraki:audit", "meraki:cameras", "meraki:devices", "meraki:devicesavailabilities", "meraki:devicesavailabilitieschangehistory", "meraki:devicesuplinksaddressesbydevice", "meraki:devicesuplinkslossandlatency", "meraki:firmwareupgrades", "meraki:licensescotermlicenses", "meraki:licensesoverview", "meraki:licensessubscriptionentitlements", "meraki:licensessubscriptions", "meraki:organizations", "meraki:organizationsecurity", "meraki:organizationsnetworks", "meraki:portstransceiversreadingshistorybyswitch", "meraki:powermodulesstatusesbydevice", "meraki:securityappliances", "meraki:sensorreadingshistory", "meraki:summaryswitchpowerhistory", "meraki:summarytopappliancesbyutilization", "meraki:summarytopclientsbyusage", "meraki:summarytopdevicesbyusage",
+    "meraki:summarytopswitchesbyenergyusage", "meraki:switches", "meraki:switchportsbyswitch", "meraki:switchportsoverview", "meraki:webhooklogs:api", "meraki:wirelesscontrolleravailabilitieschangehistory", "meraki:wirelesscontrollerdevicesinterfacespacketsoverviewbydevice", "meraki:wirelesscontrollerdevicesinterfacesusagehistorybyinterval", "meraki:wirelessdevicesethernetstatuses", "meraki:wirelessdevicespacketlossbydevice", "meraki:wirelessdeviceswirelesscontrollersbydevice"].includes(sourcetype)
+- id: meraki_syslog
+  name: Meraki syslog
+  final: true
+  disabled: false
+  pipeline: meraki_syslog
+  output: default
+  enableOutputExpression: false
+  clones: []
+  description: Pack syslog Source, or any Source receiving Meraki-format syslog.
+  filter: __meraki_kind === 'syslog' || (typeof _raw === 'string' && /^(?:<\d{1,3}>)?[\s\S]{0,80}?\b\d{10}\.\d+\s+\S+\s+(?:flows|urls|firewall|vpn_firewall|cellular_firewall|bridge_anyconnect_client_vpn_firewall|l7_firewall|ids-alerts|security_event|events|airmarshal_events|ip_flow_start|ip_flow_end|anyconnect_vpn_\w+)\b/.test(_raw))
+- id: meraki_unmatched
+  name: Unmatched
+  final: true
+  disabled: false
+  pipeline: passthru
+  output: default
+  enableOutputExpression: false
+  clones: []
+  description: Not recognised as Meraki data; passed through unchanged.
+  filter: 'true'

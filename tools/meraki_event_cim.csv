@@ -1,0 +1,28 @@
+product,meraki_event_type,action,change_type,object,object_category,result,object_attrs
+wireless,auto_rf_channel_change,modified,update,channel,accesspoint,modified,channel
+wireless,auto_tx_power_change,modified,update,power,accesspoint,modified,power
+wireless,dfs_event,created,creation,channel,accesspoint,created,channel
+wireless,wpa_auth,success,,,,,
+wireless,wpa_deauth,logoff,AAA,accesspoint,authentication,stopped,
+wireless,splash_auth,success,,,,,
+wireless,8021x_auth,success,,,,,
+wireless,8021x_eap_success,success,,,,,
+wireless,8021x_eap_failure,failure,,,,,
+appliance,splash_auth,success,,,,,
+appliance,dhcp_lease,added,,,,,
+appliance,ids_start,started,start,intrusion detection,security service,started,
+appliance,ids_update,modified,update,intrusion detection,policy,modified,
+appliance,web_cache_started,started,start,securityappliance,web_cache,started,
+appliance,web_cache_stopped,stopped,stop,securityappliance,web_cache,stopped,
+appliance,vpn_registry_change,,,securityappliance,site_to_site_vpn,,
+switch,poe_budget_change,modified,update,poe,,modified,
+switch,psu_insert,modified,update,psu,,modified,
+switch,port_status,modified,update,port,,,
+switch,port_bounce,modified,update,port,,modified,
+switch,stp_port_role_change,,start,port,,,
+camera,update_user_settings,modified,update,,user_settings,modified,
+camera,motion_alert_schedule_applied,started,start,,motion_alert_schedule,started,
+camera,motion_alert_schedule_removed,deleted,delete,,motion_alert_schedule,deleted,
+camera,video_export_delete,deleted,delete,,video_export,deleted,
+camera,schedule_edited,modified,update,,schedule,modified,
+camera,schedule_applied,started,start,,schedule,started,

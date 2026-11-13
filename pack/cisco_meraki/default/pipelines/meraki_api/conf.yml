@@ -1,0 +1,114 @@
+output: default
+streamtags:
+- meraki
+groups: {}
+asyncFuncTimeout: 1000
+description: Meraki Dashboard API records from the pack REST collectors (all meraki:* API sourcetypes).
+functions:
+- id: eval
+  filter: 'true'
+  disabled: false
+  description: Load pack variables into internal fields (Code functions read __cfg_*).
+  conf:
+    add:
+    - name: __cfg_output_mode
+      value: C.vars.meraki_output_mode || 'raw'
+    - name: __cfg_index
+      value: C.vars.meraki_index || ''
+    - name: __cfg_org_id
+      value: C.vars.meraki_org_id || ''
+    - name: __cfg_api_host
+      value: C.vars.meraki_api_host || 'api.meraki.com'
+- id: code
+  filter: 'true'
+  disabled: false
+  description: Normalise the page shape ([...], {items}, {events}, {...}) to an array in _raw.
+  conf:
+    code: "// meraki_api / step 1: turn one API response page into an array of records.\n// The REST collectors emit one event per HTTP page (breaker: meraki_json_document).\n// Meraki returns three page shapes; all are normalised here so the collectors\n// never depend on a per-endpoint \"data field\" being right:\n//   [ {...}, {...} ]                      -> top-level array (most org endpoints)\n//   { items: [...], meta: {...} }         -> newer byDevice / wirelessController endpoints\n//   { message, pageStartAt, events: [] }  -> /networks/{id}/events\n//   { ... }                               -> single-object overview endpoints\n// The array is written back to _raw so the Unroll function that follows creates\n// one event per record without copying the full page into every record.\nlet page = null;\nif (typeof __e._raw === 'string') {\n  try { page = JSON.parse(__e._raw); } catch (err) { page = undefined; }\n} else {\n  page = __e._raw;\n}\nif (page === undefined) {\n  __e.__meraki_parse_error\
+      \ = 'API page is not valid JSON';\n  __e._raw = [__e._raw];\n} else if (Array.isArray(page)) {\n  __e._raw = page;\n} else if (page && typeof page === 'object' && Array.isArray(page.items)) {\n  __e.__meraki_page_meta = page.meta;\n  __e._raw = page.items;\n} else if (page && typeof page === 'object' && Array.isArray(page.events)) {\n  __e.__meraki_page_meta = { pageStartAt: page.pageStartAt, pageEndAt: page.pageEndAt };\n  __e._raw = page.events;\n} else {\n  __e._raw = [page];\n}\n"
+    maxNumOfIterations: 20000
+    activityLogSampleRate: 1
+- id: unroll
+  filter: Array.isArray(_raw)
+  disabled: false
+  description: One event per Meraki record.
+  conf:
+    srcExpr: _raw
+    dstField: _raw
+- id: code
+  filter: 'true'
+  disabled: false
+  description: Parse the record and expose lookup keys.
+  conf:
+    code: "// meraki_api / step 2: parse one record and expose the lookup keys.\nlet rec = __e._raw;\nif (typeof rec === 'string') {\n  try { rec = JSON.parse(rec); } catch (err) { __e.__meraki_parse_error = 'record is not valid JSON'; rec = { value: rec }; }\n}\nif (rec === null || typeof rec !== 'object' || Array.isArray(rec)) {\n  rec = { value: rec };\n}\n__e.__json = rec;\n\n// Network event logs: sourcetype -> Meraki productType (TA SOURCETYPE_PRODUCT_TYPE_MAPPING)\nconst PRODUCT = {\n  'meraki:accesspoints': 'wireless',\n  'meraki:securityappliances': 'appliance',\n  'meraki:switches': 'switch',\n  'meraki:cameras': 'camera'\n};\n__e.__meraki_product = PRODUCT[__e.sourcetype];\n__e.__meraki_event_type = __e.__meraki_product && rec.type !== undefined ? String(rec.type) : undefined;\n__e.__meraki_priority = rec.priority !== undefined && rec.priority !== null ? String(rec.priority) : undefined;\n"
+    maxNumOfIterations: 20000
+    activityLogSampleRate: 1
+- id: lookup
+  filter: __cfg_output_mode === 'structured' && __meraki_event_type !== undefined
+  disabled: false
+  description: TA LOOKUP-* (accesspoints/securityappliances/switches/cameras), OUTPUTNEW semantics.
+  conf:
+    file: meraki_event_cim.csv
+    matchMode: exact
+    reloadPeriodSec: -1
+    addToEvent: false
+    ignoreCase: false
+    inFields:
+    - eventField: __meraki_product
+      lookupField: product
+    - eventField: __meraki_event_type
+      lookupField: meraki_event_type
+    outFields:
+    - lookupField: action
+      eventField: __lk_action
+    - lookupField: change_type
+      eventField: __lk_change_type
+    - lookupField: object
+      eventField: __lk_object
+    - lookupField: object_category
+      eventField: __lk_object_category
+    - lookupField: result
+      eventField: __lk_result
+    - lookupField: object_attrs
+      eventField: __lk_object_attrs
+- id: lookup
+  filter: __cfg_output_mode === 'structured' && sourcetype === 'meraki:organizationsecurity' && __meraki_priority !== undefined
+  disabled: false
+  description: IDS priority -> severity (TA cisco_meraki_organizationsecurity_lookup).
+  conf:
+    file: meraki_ids_priority.csv
+    matchMode: exact
+    reloadPeriodSec: -1
+    addToEvent: false
+    ignoreCase: false
+    inFields:
+    - eventField: __meraki_priority
+      lookupField: priority
+    outFields:
+    - lookupField: severity
+      eventField: __lk_severity
+- id: code
+  filter: 'true'
+  disabled: false
+  description: _time, host, organizationId, source/index and CIM (props.conf port).
+  conf:
+    code: "// meraki_api / step 4: timestamp, host, metadata and (optionally) CIM enrichment.\n// CIM logic is a 1:1 port of Splunk_TA_cisco_meraki 3.5.0 default/props.conf\n// (EVAL-*, FIELDALIAS-*, LOOKUP-*) and tags.conf. In \"structured\" output mode the\n// result is written to a `cim` object inside _raw so it can never collide with\n// Meraki's own keys (the TA overwrites e.g. `type` at search time).\nconst TIME_FIELDS = {\"meraki:accesspoints\": \"occurredAt\", \"meraki:airmarshal\": \"lastSeen\", \"meraki:apirequestshistory\": \"ts\", \"meraki:assurancealerts\": \"startedAt\", \"meraki:audit\": \"ts\", \"meraki:cameras\": \"occurredAt\", \"meraki:devicesavailabilitieschangehistory\": \"ts\", \"meraki:firmwareupgrades\": \"time\", \"meraki:organizationsecurity\": \"ts\", \"meraki:securityappliances\": \"occurredAt\", \"meraki:sensorreadingshistory\": \"ts\", \"meraki:switches\": \"occurredAt\", \"meraki:webhooklogs:api\": \"loggedAt\", \"meraki:wirelesscontrolleravailabilitieschangehistory\"\
+      : \"ts\"};\nconst STATIC_TAGS = {\"meraki:apirequestshistory\": [\"web\"], \"meraki:assurancealerts\": [\"alert\"], \"meraki:audit\": [\"change\"], \"meraki:devices\": [\"inventory\"], \"meraki:devicesavailabilities\": [\"inventory\"], \"meraki:devicesavailabilitieschangehistory\": [\"change\"], \"meraki:devicesuplinksaddressesbydevice\": [\"inventory\"], \"meraki:firmwareupgrades\": [\"change\"], \"meraki:powermodulesstatusesbydevice\": [\"inventory\"], \"meraki:switchportsbyswitch\": [\"inventory\"], \"meraki:wirelesscontrolleravailabilitieschangehistory\": [\"inventory\"], \"meraki:wirelesscontrollerdevicesinterfacespacketsoverviewbydevice\": [\"network\"], \"meraki:wirelesscontrollerdevicesinterfacesusagehistorybyinterval\": [\"network\"], \"meraki:wirelessdevicespacketlossbydevice\": [\"performance\"]};\n\nconst j = __e.__json || {};\nconst st = typeof __e.sourcetype === 'string' ? __e.sourcetype : 'meraki:unknown';\nconst structured = __e.__cfg_output_mode === 'structured';\n\
+      \nfunction toEpoch(v) {\n  if (v === undefined || v === null || v === '') return null;\n  if (typeof v === 'number') return v > 1e12 ? v / 1000 : v;\n  if (typeof v === 'string' && /^\\d+(\\.\\d+)?$/.test(v)) {\n    const n = Number(v);\n    return n > 1e12 ? n / 1000 : n;\n  }\n  const ms = Date.parse(v);\n  return isNaN(ms) ? null : ms / 1000;\n}\nfunction lc(v) { return typeof v === 'string' ? v.toLowerCase() : v; }\nfunction get(o, path) {\n  let cur = o;\n  const parts = path.split('.');\n  for (let i = 0; i < parts.length; i++) {\n    if (cur === null || cur === undefined || typeof cur !== 'object') return undefined;\n    cur = cur[parts[i]];\n  }\n  return cur;\n}\n// Splunk-style multivalue path: \"intervals{}.overall.usage.total\"\nfunction pluck(o, path) {\n  let vals = [o];\n  const segs = path.split('.');\n  for (let s = 0; s < segs.length; s++) {\n    const seg = segs[s];\n    const isArr = seg.endsWith('{}');\n    const key = isArr ? seg.slice(0, -2) : seg;\n    const\
+      \ next = [];\n    for (let i = 0; i < vals.length; i++) {\n      const v = vals[i] === null || vals[i] === undefined ? undefined : vals[i][key];\n      if (v === undefined || v === null) continue;\n      if (isArr) { if (Array.isArray(v)) { for (let k = 0; k < v.length; k++) next.push(v[k]); } }\n      else next.push(v);\n    }\n    vals = next;\n  }\n  if (vals.length === 0) return undefined;\n  return vals.length === 1 ? vals[0] : vals;\n}\n// \"10.1.1.1:443\" -> 10.1.1.1, \"[2001:db8::1]:443\" -> 2001:db8::1, bare IPv6 unchanged\nfunction hostPart(v) {\n  if (typeof v !== 'string') return v;\n  const b = v.match(/^\\[([^\\]]+)\\](?::\\d+)?$/);\n  if (b) return b[1];\n  const p = v.split(':');\n  return p.length === 2 ? p[0] : v;\n}\n// Port of MerakiConnect.get_event_host()\nfunction pickHost(r) {\n  const c = [r.deviceName];\n  if (r.device && typeof r.device === 'object') c.push(r.device.name, r.device.serial);\n  if (r.serial || r.deviceSerial) c.push(r.name);\n  c.push(r.deviceSerial,\
+      \ r.serial);\n  for (let i = 0; i < c.length; i++) {\n    if (typeof c[i] === 'string' && c[i].trim()) return c[i].trim().toLowerCase();\n  }\n  return null;\n}\n\n// ---- _time ------------------------------------------------------------------\nconst tf = TIME_FIELDS[st];\nif (tf) {\n  const t = toEpoch(get(j, tf));\n  if (t !== null) __e._time = t;\n}\n\n// ---- organizationId (TA: event.setdefault(\"organizationId\", org_id)) ---------\nif (__e.__cfg_org_id && st !== 'meraki:organizations' && j.organizationId === undefined) {\n  j.organizationId = String(__e.__cfg_org_id);\n}\n\n// ---- CIM --------------------------------------------------------------------\nconst c = {};\nif (structured) {\n  const t = j.type;\n  const ed = j.eventData && typeof j.eventData === 'object' ? j.eventData : {};\n  const dn = j.deviceName ? j.deviceName : j.deviceSerial;\n  const is = function () { for (let i = 0; i < arguments.length; i++) { if (arguments[i] === t) return true; } return false; };\n\
+      \  const tags = [];\n\n  switch (st) {\n    case 'meraki:accesspoints': {\n      const attacks = is('bcast_deauth_attack', 'mac_spoofing_attack');\n      const change4 = is('auto_rf_channel_change', 'auto_tx_power_change', 'dfs_event', 'wpa_deauth');\n      const auth5 = is('wpa_auth', 'splash_auth', '8021x_auth', '8021x_eap_success', '8021x_eap_failure');\n      const x8021 = is('8021x_auth', '8021x_eap_success', '8021x_eap_failure');\n      if (attacks || auth5) c.app = 'Cisco Meraki';\n      if (attacks) { c.description = j.description; c.severity = 'unknown'; c.type = 'warning'; c.src = lc(ed.src); c.dest = dn; }\n      if (change4) { c.dest = dn; c.dvc = dn; c.src = dn; c.status = 'success'; c.vendor_product = 'Cisco Meraki'; }\n      if (is('auto_rf_channel_change', 'auto_tx_power_change', 'dfs_event')) c.object_id = j.deviceSerial;\n      if (auth5) c.src = j.clientDescription;\n      if (t === '8021x_auth') c.src_ip = ed.last_known_client_ip;\n      if (is('8021x_eap_success',\
+      \ '8021x_eap_failure')) c.src_ip = ed.client_ip;\n      if (x8021) { c.src_mac = lc(ed.client_mac); c.user = ed.identity; }\n      if (is('wpa_auth', 'wpa_deauth', 'splash_auth')) c.user = j.clientDescription;\n      if (attacks) tags.push('alert');\n      if (auth5) tags.push('authentication');\n      if (change4) tags.push('change');\n      break;\n    }\n    case 'meraki:securityappliances': {\n      const vpnUp = String(ed.connectivity) === 'true';\n      if (t === 'vpn_registry_change') { c.action = vpnUp ? 'started' : 'stopped'; c.change_type = vpnUp ? 'start' : 'stop'; c.result = vpnUp ? 'started' : 'stopped'; }\n      if (is('dhcp_problem', 'dhcp_blocked', 'martian_vlan', 'cf_block', 'events_dropped2', 'splash_auth')) c.app = 'Cisco Meraki';\n      if (t === 'dhcp_problem') c.description = '\"extra\":\"' + ed.extra + '\",\"vap\":\"' + ed.vap + '\",\"vlan\":\"' + ed.vlan + '\"';\n      if (t === 'events_dropped2') c.description = '\"n\":\"' + ed.n + '\",\"type\":\"' + ed.type\
+      \ + '\"';\n      if (t === 'martian_vlan') c.description = '\"all_total_illegal_packets\":\"' + ed.all_total_illegal_packets + '\",\"client_total_illegal_packets\":\"' + ed.client_total_illegal_packets + '\",\"last_illegal_ip_mapped_vlan_id\":\"' + ed.last_illegal_ip_mapped_vlan_id + '\",\"last_reported_total\":\"' + ed.last_reported_total + '\",\"source_client_assigned_vlan\":\"' + ed.source_client_assigned_vlan + '\",\"source_client_ip\":\"' + ed.source_client_ip + '\",\"source_client_mac\":\"' + ed.source_client_mac + '\"';\n      if (t === 'cf_block') c.description = '\"category\":\"' + ed.category + '\",\"server\":\"' + ed.server + '\",\"url\":\"' + ed.url + '\"';\n      if (is('dhcp_problem', 'dhcp_blocked', 'ids_start', 'ids_update', 'martian_vlan', 'web_cache_started', 'web_cache_stopped', 'vpn_registry_change', 'events_dropped2')) c.dest = dn;\n      if (t === 'cf_block') c.dest = j.clientId;\n      if (t === 'dhcp_lease') { c.dest_ip = lc(ed.server_ip); c.dest_mac = lc(ed.server_mac);\
+      \ c.duration = ed.duration; c.lease_duration = ed.duration; c.lease_scope = ed.subnet; c.src_ip = ed.ip; }\n      const svc = is('ids_start', 'ids_update', 'web_cache_started', 'web_cache_stopped', 'vpn_registry_change');\n      if (svc) { c.dvc = dn; c.status = 'success'; }\n      if (is('ids_start', 'ids_update')) { c.object_attrs = 'intrusion_detection_rules'; c.object_id = ed.rules; }\n      if (t === 'web_cache_started') c.object_attrs = ed.cache_size_mb;\n      if (t === 'martian_vlan') c.severity = 'unknown';\n      if (is('dhcp_lease', 'dhcp_problem', 'dhcp_blocked', 'martian_vlan', 'cf_block', 'events_dropped2')) c.signature = j.description;\n      if (t === 'cf_block') c.signature_id = ed.category;\n      if (t === 'dhcp_problem') c.src = ed.vlan;\n      if (t === 'dhcp_blocked') c.src = lc(ed.mac);\n      if (svc || is('cf_block', 'events_dropped2')) c.src = dn;\n      if (t === 'martian_vlan') c.src = ed.source_client_ip;\n      if (t === 'splash_auth') { c.src = j.clientDescription;\
+      \ c.user = j.clientDescription; }\n      if (is('dhcp_problem', 'dhcp_blocked', 'martian_vlan')) c.type = 'warning';\n      if (is('cf_block', 'events_dropped2')) c.type = 'alert';\n      if (svc || t === 'dhcp_lease') c.vendor_product = 'Cisco Meraki';\n      if (is('dhcp_problem', 'dhcp_blocked', 'martian_vlan', 'cf_block', 'events_dropped2')) tags.push('alert');\n      if (t === 'splash_auth') tags.push('authentication');\n      if (svc) tags.push('change');\n      if (t === 'dhcp_lease') tags.push('network', 'session');\n      break;\n    }\n    case 'meraki:switches': {\n      const sw5 = is('port_status', 'stp_port_role_change', 'port_bounce', 'poe_budget_change', 'psu_insert');\n      const designated = ed.new_state === 'designated';\n      if (t === 'stp_port_role_change') { c.action = designated ? 'started' : 'stopped'; c.result = c.action; c.object_attrs = ed.new_state; c.object_id = ed.port; c.status = ed.new_state; }\n      if (sw5) { c.dest = dn; c.dvc = dn; c.src = dn;\
+      \ c.object_category = 'switch'; c.vendor_product = 'Cisco Meraki'; tags.push('change'); }\n      if (t === 'port_status') { c.object_attrs = ed['new']; c.object_id = ed.port; c.result = ed['new']; c.status = 'success'; }\n      if (t === 'port_bounce') { c.object_attrs = 'bounce'; c.object_id = ed.ports; c.status = 'bounce'; }\n      if (t === 'psu_insert') { c.object_id = ed.slot; c.status = 'success'; }\n      if (t === 'poe_budget_change') c.status = 'success';\n      break;\n    }\n    case 'meraki:cameras': {\n      const cam7 = is('update_user_settings', 'night_mode', 'motion_alert_schedule_applied', 'motion_alert_schedule_removed', 'video_export_delete', 'schedule_applied', 'schedule_edited');\n      if (t === 'night_mode') {\n        c.action = ed.new_state === 'on' ? 'started' : (ed.new_state === 'off' ? 'stopped' : undefined);\n        c.result = c.action;\n        c.change_type = 'system configuration';\n        c.object_attrs = '\"lux\":\"' + ed.lux + '\",\"new_state\"\
+      :\"' + ed.new_state + '\"';\n        c.object_category = 'night_mode';\n      }\n      if (cam7) { c.dest = dn; c.dvc = dn; c.src = dn; c.object = 'camera'; c.status = 'success'; c.vendor_product = 'Cisco Meraki'; tags.push('change'); }\n      if (is('motion_alert_schedule_applied', 'motion_alert_schedule_removed', 'schedule_applied', 'schedule_edited')) c.object_attrs = 'schedule';\n      if (t === 'update_user_settings') c.object_attrs = 'motion_based_retention';\n      if (is('update_user_settings', 'motion_alert_schedule_applied', 'motion_alert_schedule_removed', 'schedule_applied', 'schedule_edited')) c.user = ed.user;\n      break;\n    }\n    case 'meraki:organizationsecurity': {\n      const ids = j.eventType === 'IDS Alert';\n      const fs = j.eventType === 'File Scanned';\n      if (ids) {\n        c.action = String(j.blocked) === 'true' ? 'blocked' : 'allowed';\n        c.category = j.message;\n        c.dest = hostPart(j.destIp); c.dest_ip = c.dest;\n        c.src = hostPart(j.srcIp);\
+      \ c.src_ip = c.src;\n        c.signature_id = j.signature;\n        c.signature = j.message;\n      }\n      if (fs) {\n        c.action = lc(j.action);\n        c.bytes_in = j.fileSizeBytes;\n        c.category = j.fileType;\n        c.dest = j.clientName; c.dest_ip = j.srcIp;\n        c.file_hash = j.fileHash;\n        c.file_path = j.uri;\n        if (typeof j.uri === 'string') c.file_name = j.uri.split('/').pop().split('?')[0];\n        c.signature = j.canonicalName;\n        c.user = j.clientName;\n      }\n      if (typeof j.ts === 'string') c.date = j.ts.substring(0, 10);\n      // TA hard-codes severity=\"high\"; Meraki IDS priority (1-4) is used when present.\n      c.severity = __e.__lk_severity || 'high';\n      tags.push(fs ? 'malware' : 'ids', 'attack');\n      break;\n    }\n    case 'meraki:audit': {\n      c.dest = j.networkId; c.object = j.networkName; c.object_attrs = j.label;\n      c.vendor_account = j.adminEmail;\n      c.user = typeof j.adminEmail === 'string'\
+      \ ? j.adminEmail.split('@')[0] : undefined;\n      c.action = 'modified'; c.change_type = 'system configuration'; c.object_category = 'system configuration';\n      c.result = '\"' + j.label + '\",\"Old value\":\"' + j.oldValue + '\",\"New value\":\"' + j.newValue + '\"';\n      c.status = 'success';\n      break;\n    }\n    case 'meraki:apirequestshistory': {\n      c.dest = j.host; c.user = j.adminId; c.http_method = j.method; c.status = j.responseCode;\n      c.src = j.sourceIp; c.uri_path = j.path; c.uri_query = j.queryString; c.http_user_agent = j.userAgent;\n      break;\n    }\n    case 'meraki:assurancealerts': {\n      c.alert_description = j.description; c.alert_severity = j.severity; c.alert_id = j.id; c.signature = j.title;\n      break;\n    }\n    case 'meraki:devicesavailabilitieschangehistory': {\n      c.object = get(j, 'device.name'); c.device_name = c.object;\n      c.object_id = get(j, 'device.serial'); c.device_serial = c.object_id;\n      c.product_type = get(j,\
+      \ 'device.productType');\n      c.status = pluck(j, 'details.new{}.value'); c.device_status = c.status;\n      c.action = 'updated';\n      break;\n    }\n    case 'meraki:devicesuplinksaddressesbydevice':\n    case 'meraki:devicesavailabilities': {\n      c.device_name = j.name; c.device_serial = j.serial; c.device_mac = j.mac;\n      if (st === 'meraki:devicesavailabilities') c.device_status = j.status;\n      break;\n    }\n    case 'meraki:wirelessdevicespacketlossbydevice': {\n      c.dest_name = get(j, 'network.name'); c.destination_network = c.dest_name;\n      c.downstream_total = get(j, 'downstream.total'); c.upstream_total = get(j, 'upstream.total');\n      if (typeof c.downstream_total === 'number' && typeof c.upstream_total === 'number') c.thruput = c.downstream_total + c.upstream_total;\n      break;\n    }\n    case 'meraki:devices': { c.ip = j.lanIp; break; }\n    case 'meraki:wirelesscontrolleravailabilitieschangehistory': { c.status = pluck(j, 'changes{}.status');\
+      \ break; }\n    case 'meraki:wirelesscontrollerdevicesinterfacesusagehistorybyinterval': {\n      c.bytes = pluck(j, 'intervals{}.overall.usage.total'); c.bytes_in = pluck(j, 'intervals{}.overall.usage.recv');\n      c.bytes_out = pluck(j, 'intervals{}.overall.usage.send'); c.dvc = j.serial;\n      break;\n    }\n    case 'meraki:wirelesscontrollerdevicesinterfacespacketsoverviewbydevice': {\n      c.bytes = pluck(j, 'interfaces{}.readings{}.total'); c.bytes_in = pluck(j, 'interfaces{}.readings{}.recv');\n      c.bytes_out = pluck(j, 'interfaces{}.readings{}.send'); c.dvc = j.serial;\n      break;\n    }\n    case 'meraki:firmwareupgrades': {\n      c.upgrade_status = j.status; c.object_id = j.upgradeId; c.change_type = j.productTypes;\n      c.src = get(j, 'fromVersion.id'); c.current_update = c.src;\n      c.dest = get(j, 'toVersion.id'); c.lastest_update = c.dest;\n      c.action = 'updated';\n      break;\n    }\n    default: break;\n  }\n\n  // LOOKUP-* with OUTPUTNEW: EVAL results\
+      \ win, lookup only fills gaps.\n  const LK = ['action', 'change_type', 'object', 'object_category', 'result', 'object_attrs'];\n  for (let i = 0; i < LK.length; i++) {\n    const v = __e['__lk_' + LK[i]];\n    if (c[LK[i]] === undefined && v !== undefined && v !== null && v !== '') c[LK[i]] = v;\n  }\n  if (c.vendor_product === undefined) c.vendor_product = 'Cisco Meraki';\n  c.vendor = 'Cisco';\n  c.product = 'Meraki';\n  if (__e.__meraki_event_type !== undefined) c.meraki_event_type = __e.__meraki_event_type;\n  const st_tags = STATIC_TAGS[st] || [];\n  for (let i = 0; i < st_tags.length; i++) { if (tags.indexOf(st_tags[i]) === -1) tags.push(st_tags[i]); }\n  if (tags.length) c.tag = tags;\n  const keys = Object.keys(c);\n  for (let i = 0; i < keys.length; i++) { if (c[keys[i]] === undefined || c[keys[i]] === null) delete c[keys[i]]; }\n  j.cim = c;\n}\n\n// ---- metadata + output --------------------------------------------------------\n__e.host = pickHost(j) || __e.__cfg_api_host\
+      \ || 'api.meraki.com';\n__e.source = 'meraki:api:' + st.replace(/^meraki:/, '');\nif (__e.__cfg_index) __e.index = __e.__cfg_index;\n__e.__meraki = { kind: 'api', sourcetype: st, event_type: __e.__meraki_event_type, cim: structured ? c : undefined };\n__e._raw = JSON.stringify(j);\n"
+    maxNumOfIterations: 100000
+    activityLogSampleRate: 1

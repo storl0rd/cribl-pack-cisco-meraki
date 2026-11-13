@@ -1,0 +1,38 @@
+output: default
+streamtags:
+- meraki
+groups: {}
+asyncFuncTimeout: 1000
+description: Meraki Dashboard alert webhooks (default Meraki template or Splunk TA HEC template).
+functions:
+- id: eval
+  filter: 'true'
+  disabled: false
+  description: Load pack variables into internal fields (Code functions read __cfg_*).
+  conf:
+    add:
+    - name: __cfg_output_mode
+      value: C.vars.meraki_output_mode || 'raw'
+    - name: __cfg_index
+      value: C.vars.meraki_index || ''
+    - name: __cfg_org_id
+      value: C.vars.meraki_org_id || ''
+    - name: __cfg_api_host
+      value: C.vars.meraki_api_host || 'api.meraki.com'
+    - name: __cfg_webhook_secret
+      value: C.vars.meraki_webhook_shared_secret || ''
+- id: code
+  filter: 'true'
+  disabled: false
+  description: Unwrap, authenticate, strip secret, timestamp, CIM.
+  conf:
+    code: "// meraki_webhook: Meraki Dashboard alert webhooks.\n// Accepts both payload shapes seen in the field:\n//   1. Meraki default template (\"Meraki (included)\")  -> flat JSON incl. sharedSecret\n//   2. Splunk TA template (HEC envelope)               -> {\"sourcetype\":\"meraki:webhook\",\"event\":{...}}\n// The shared secret is validated (when meraki_webhook_shared_secret is set) and is\n// ALWAYS stripped before the event leaves Cribl.\nconst original = __e._raw;\nlet j = null;\nif (typeof original === 'string') {\n  try { j = JSON.parse(original); } catch (err) { j = null; }\n} else if (original && typeof original === 'object') {\n  j = original;\n}\n\nif (!j || typeof j !== 'object' || Array.isArray(j)) {\n  __e.sourcetype = 'meraki:webhook';\n  __e.source = 'meraki:webhook';\n  __e.__meraki = { kind: 'webhook', parse_error: 'webhook body is not a JSON object' };\n} else {\n  let enveloped = false;\n  if (j.event && typeof j.event === 'object' && j.alertType === undefined)\
+      \ { j = j.event; enveloped = true; }\n\n  // ---- authentication ---------------------------------------------------------\n  const expected = __e.__cfg_webhook_secret;\n  if (expected) {\n    if (j.sharedSecret === undefined) {\n      // HEC-envelope deliveries are authenticated by the HEC token at the Source.\n      if (!enveloped) __e.__meraki_drop = 'shared_secret_missing';\n    } else if (String(j.sharedSecret) !== String(expected)) {\n      __e.__meraki_drop = 'shared_secret_mismatch';\n    }\n  }\n  delete j.sharedSecret;\n\n  // ---- time / host --------------------------------------------------------------\n  const ts = Date.parse(j.occurredAt || j.sentAt || '');\n  if (!isNaN(ts)) __e._time = ts / 1000;\n  const h = j.deviceName || j.deviceSerial || j.networkName;\n  if (typeof h === 'string' && h.trim()) __e.host = h.trim().toLowerCase();\n  __e.sourcetype = 'meraki:webhook';\n  __e.source = 'meraki:webhook';\n  if (__e.__cfg_index) __e.index = __e.__cfg_index;\n\n  // ----\
+      \ CIM (TA FIELDALIAS: alertId->id, alertType->type, deviceMac->dest, alertLevel->severity)\n  const c = {\n    id: j.alertId,\n    type: j.alertType,\n    signature: j.alertType,\n    dest: j.deviceMac ? String(j.deviceMac).toLowerCase() : undefined,\n    dvc: j.deviceName || j.deviceSerial,\n    severity: j.alertLevel,\n    vendor_product: 'Cisco Meraki',\n    vendor: 'Cisco',\n    product: 'Meraki',\n    tag: ['alert']\n  };\n  const keys = Object.keys(c);\n  for (let i = 0; i < keys.length; i++) { if (c[keys[i]] === undefined || c[keys[i]] === null || c[keys[i]] === '') delete c[keys[i]]; }\n  if (__e.__cfg_output_mode === 'structured') j.cim = c;\n  __e.__meraki = { kind: 'webhook', alert_type: j.alertType, cim: c };\n  __e._raw = JSON.stringify(j);\n}\n"
+    maxNumOfIterations: 20000
+    activityLogSampleRate: 1
+- id: drop
+  filter: __meraki_drop !== undefined
+  disabled: false
+  description: Drop webhooks that failed shared-secret validation.
+  conf: {}

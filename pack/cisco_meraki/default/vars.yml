@@ -1,0 +1,36 @@
+meraki_api_host:
+  type: string
+  lib: custom
+  value: api.meraki.com
+  description: 'Dashboard API host. Canada: api.meraki.ca, China: api.meraki.cn, India: api.meraki.in, US FedRAMP: api.gov-meraki.com'
+  tags: meraki
+meraki_org_id:
+  type: string
+  lib: custom
+  value: ''
+  description: Meraki organization ID collected by the REST collectors (GET /api/v1/organizations).
+  tags: meraki
+meraki_output_mode:
+  type: string
+  lib: custom
+  value: raw
+  description: raw = byte-for-byte Splunk TA compatible _raw (search-time CIM via the TA). structured = _raw JSON gains a `cim` object (for non-Splunk destinations).
+  tags: meraki
+meraki_index:
+  type: string
+  lib: custom
+  value: ''
+  description: Optional destination index written to the `index` field. Empty = leave to Destination/Route.
+  tags: meraki
+meraki_webhook_shared_secret:
+  type: string
+  lib: custom
+  value: ''
+  description: Webhook shared secret configured on the Meraki HTTP server. When set, webhooks without a matching sharedSecret are dropped.
+  tags: meraki
+meraki_syslog_drop_categories:
+  type: string
+  lib: custom
+  value: ''
+  description: Comma-separated Meraki syslog roles to drop at the edge, e.g. flows,urls (largest volume roles).
+  tags: meraki

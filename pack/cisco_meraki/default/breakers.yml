@@ -1,0 +1,21 @@
+meraki_json_document:
+  lib: custom
+  description: One event per Meraki JSON document (an API response page or a webhook body). Breaks only before a top-level { or [ at the start of a line, so pretty-printed bodies stay whole.
+  tags: meraki
+  minRawLength: 256
+  rules:
+  - name: Meraki JSON document
+    condition: 'true'
+    type: regex
+    timestampAnchorRegex: /^/
+    timestamp:
+      type: current
+      length: 150
+    timestampTimezone: utc
+    timestampEarliest: -420weeks
+    timestampLatest: +1week
+    maxEventBytes: 33554432
+    disabled: false
+    parserEnabled: false
+    shouldUseDataRaw: false
+    eventBreakerRegex: /[\r\n]+(?=[\[{])/

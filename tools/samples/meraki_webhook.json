@@ -1,0 +1,22 @@
+[
+  {
+    "_raw": "{\"version\":\"0.1\",\"sharedSecret\":\"s3cr3t\",\"sentAt\":\"2025-11-13T08:01:02.000000Z\",\"organizationId\":\"123456\",\"organizationName\":\"Example Corp\",\"organizationUrl\":\"https://n1.meraki.com/o/abc/manage/organization/overview\",\"networkId\":\"L_111\",\"networkName\":\"HQ\",\"networkUrl\":\"https://n1.meraki.com/HQ/n/xyz/manage/nodes/list\",\"networkTags\":[],\"deviceSerial\":\"Q2XX-AAAA-BBBB\",\"deviceMac\":\"E0:CB:BC:00:00:01\",\"deviceName\":\"MX84_HQ\",\"deviceUrl\":\"https://n1.meraki.com/HQ/n/xyz/manage/nodes/new_list/123\",\"deviceTags\":[\"hq\"],\"deviceModel\":\"MX84\",\"alertId\":\"643451796765\",\"alertType\":\"Uplink status changed\",\"alertTypeId\":\"failover_event\",\"alertLevel\":\"critical\",\"occurredAt\":\"2025-11-13T08:00:59.000000Z\",\"alertData\":{\"uplink\":\"0\"}}",
+    "_time": 1763020800,
+    "__meraki_kind": "webhook"
+  },
+  {
+    "_raw": "{\"sourcetype\":\"meraki:webhook\",\"event\":{\"version\":\"0.1\",\"sentAt\":\"2025-11-13T08:01:02.000000Z\",\"organizationId\":\"123456\",\"organizationName\":\"Example Corp\",\"organizationUrl\":\"https://n1.meraki.com/o/abc/manage/organization/overview\",\"networkId\":\"L_111\",\"networkName\":\"HQ\",\"networkUrl\":\"https://n1.meraki.com/HQ/n/xyz/manage/nodes/list\",\"networkTags\":[],\"deviceSerial\":\"Q2XX-AAAA-BBBB\",\"deviceMac\":\"E0:CB:BC:00:00:01\",\"deviceName\":\"MX84_HQ\",\"deviceUrl\":\"https://n1.meraki.com/HQ/n/xyz/manage/nodes/new_list/123\",\"deviceTags\":[\"hq\"],\"deviceModel\":\"MX84\",\"alertId\":\"643451796765\",\"alertType\":\"Uplink status changed\",\"alertTypeId\":\"failover_event\",\"alertLevel\":\"critical\",\"occurredAt\":\"2025-11-13T08:00:59.000000Z\",\"alertData\":{\"uplink\":\"0\"}}}",
+    "_time": 1763020800,
+    "__meraki_kind": "webhook"
+  },
+  {
+    "_raw": "{\"version\":\"0.1\",\"sharedSecret\":\"wrong\",\"sentAt\":\"2025-11-13T08:01:02.000000Z\",\"organizationId\":\"123456\",\"organizationName\":\"Example Corp\",\"organizationUrl\":\"https://n1.meraki.com/o/abc/manage/organization/overview\",\"networkId\":\"L_111\",\"networkName\":\"HQ\",\"networkUrl\":\"https://n1.meraki.com/HQ/n/xyz/manage/nodes/list\",\"networkTags\":[],\"deviceSerial\":\"Q2XX-AAAA-BBBB\",\"deviceMac\":\"E0:CB:BC:00:00:01\",\"deviceName\":\"MX84_HQ\",\"deviceUrl\":\"https://n1.meraki.com/HQ/n/xyz/manage/nodes/new_list/123\",\"deviceTags\":[\"hq\"],\"deviceModel\":\"MX84\",\"alertId\":\"643451796765\",\"alertType\":\"Uplink status changed\",\"alertTypeId\":\"failover_event\",\"alertLevel\":\"critical\",\"occurredAt\":\"2025-11-13T08:00:59.000000Z\",\"alertData\":{\"uplink\":\"0\"}}",
+    "_time": 1763020800,
+    "__meraki_kind": "webhook"
+  },
+  {
+    "_raw": "{\n  \"version\": \"0.1\",\n  \"sharedSecret\": \"s3cr3t\",\n  \"sentAt\": \"2025-11-13T08:01:02.000000Z\",\n  \"organizationId\": \"123456\",\n  \"organizationName\": \"Example Corp\",\n  \"organizationUrl\": \"https://n1.meraki.com/o/abc/manage/organization/overview\",\n  \"networkId\": \"L_111\",\n  \"networkName\": \"HQ\",\n  \"networkUrl\": \"https://n1.meraki.com/HQ/n/xyz/manage/nodes/list\",\n  \"networkTags\": [],\n  \"deviceSerial\": \"Q2XX-AAAA-BBBB\",\n  \"deviceMac\": \"E0:CB:BC:00:00:01\",\n  \"deviceName\": \"MX84_HQ\",\n  \"deviceUrl\": \"https://n1.meraki.com/HQ/n/xyz/manage/nodes/new_list/123\",\n  \"deviceTags\": [\n    \"hq\"\n  ],\n  \"deviceModel\": \"MX84\",\n  \"alertId\": \"643451796765\",\n  \"alertType\": \"Uplink status changed\",\n  \"alertTypeId\": \"failover_event\",\n  \"alertLevel\": \"critical\",\n  \"occurredAt\": \"2025-11-13T08:00:59.000000Z\",\n  \"alertData\": {\n    \"uplink\": \"0\"\n  }\n}",
+    "_time": 1763020800,
+    "__meraki_kind": "webhook"
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "_raw": "{\"message\":null,\"pageStartAt\":\"2025-11-13T07:50:00.000000Z\",\"pageEndAt\":\"2025-11-13T07:55:00.000000Z\",\"events\":[{\"occurredAt\":\"2025-11-13T07:51:10.123456Z\",\"networkId\":\"L_111\",\"type\":\"dhcp_lease\",\"description\":\"DHCP lease\",\"category\":\"dhcp\",\"clientId\":\"k1\",\"clientDescription\":\"laptop-01\",\"clientMac\":\"3c:22:fb:12:34:56\",\"deviceSerial\":\"Q2XX-AAAA-BBBB\",\"deviceName\":\"MX84_HQ\",\"eventData\":{\"ip\":\"10.10.1.88\",\"server_mac\":\"E0:CB:BC:00:00:01\",\"server_ip\":\"10.10.1.1\",\"duration\":\"86400\",\"subnet\":\"10.10.1.0/24\"}},{\"occurredAt\":\"2025-11-13T07:52:00.000000Z\",\"networkId\":\"L_111\",\"type\":\"vpn_registry_change\",\"description\":\"VPN registry connectivity change\",\"category\":\"vpn\",\"deviceSerial\":\"Q2XX-AAAA-BBBB\",\"deviceName\":\"\",\"eventData\":{\"connectivity\":\"false\",\"vpn_type\":\"site-to-site\"}},{\"occurredAt\":\"2025-11-13T07:53:00.000000Z\",\"networkId\":\"L_111\",\"type\":\"cf_block\",\"description\":\"Content filtering blocked URL\",\"category\":\"content_filtering\",\"clientId\":\"k2\",\"deviceSerial\":\"Q2XX-AAAA-BBBB\",\"deviceName\":\"MX84_HQ\",\"eventData\":{\"category\":\"Gambling\",\"server\":\"198.51.100.44:80\",\"url\":\"http://casino.example.com/\"}},{\"occurredAt\":\"2025-11-13T07:54:00.000000Z\",\"networkId\":\"L_111\",\"type\":\"ids_update\",\"description\":\"IDS rules updated\",\"category\":\"ids\",\"deviceSerial\":\"Q2XX-AAAA-BBBB\",\"deviceName\":\"MX84_HQ\",\"eventData\":{\"rules\":\"snort-2025-11-12\"}}]}",
+    "_time": 1763020800,
+    "sourcetype": "meraki:securityappliances",
+    "__meraki_kind": "api"
+  },
+  {
+    "_raw": "{\"message\":null,\"pageStartAt\":\"x\",\"pageEndAt\":\"y\",\"events\":[{\"occurredAt\":\"2025-11-13T07:51:00.000000Z\",\"networkId\":\"L_222\",\"type\":\"8021x_eap_failure\",\"description\":\"802.1X EAP failure\",\"category\":\"8021x\",\"clientDescription\":\"iphone-jdoe\",\"deviceSerial\":\"Q3XX-CCCC-DDDD\",\"deviceName\":\"MR46_Floor2\",\"eventData\":{\"client_mac\":\"F0:18:98:AA:BB:CC\",\"client_ip\":\"10.40.2.15\",\"identity\":\"jdoe@corp.example\",\"radio\":\"1\",\"vap\":\"2\"}},{\"occurredAt\":\"2025-11-13T07:52:00.000000Z\",\"networkId\":\"L_222\",\"type\":\"auto_rf_channel_change\",\"description\":\"Auto RF channel change\",\"category\":\"rf\",\"deviceSerial\":\"Q3XX-CCCC-DDDD\",\"deviceName\":\"MR46_Floor2\",\"eventData\":{\"channel\":\"36\",\"old_channel\":\"44\"}}]}",
+    "_time": 1763020800,
+    "sourcetype": "meraki:accesspoints",
+    "__meraki_kind": "api"
+  },
+  {
+    "_raw": "{\"events\":[{\"occurredAt\":\"2025-11-13T07:51:00.000000Z\",\"networkId\":\"L_333\",\"type\":\"stp_port_role_change\",\"description\":\"STP role change\",\"category\":\"stp\",\"deviceSerial\":\"Q4XX-EEEE-FFFF\",\"deviceName\":\"MS225_IDF1\",\"eventData\":{\"port\":\"12\",\"new_state\":\"designated\",\"old_state\":\"disabled\"}}]}",
+    "_time": 1763020800,
+    "sourcetype": "meraki:switches",
+    "__meraki_kind": "api"
+  },
+  {
+    "_raw": "{\"message\":\"No events\",\"pageStartAt\":null,\"pageEndAt\":null,\"events\":[]}",
+    "_time": 1763020800,
+    "sourcetype": "meraki:cameras",
+    "__meraki_kind": "api"
+  },
+  {
+    "_raw": "[{\"ts\":\"2025-11-13T07:51:30.000000Z\",\"eventType\":\"IDS Alert\",\"deviceMac\":\"e0:cb:bc:00:00:01\",\"clientMac\":\"\",\"srcIp\":\"203.0.113.50:80\",\"destIp\":\"10.10.1.25:51200\",\"protocol\":\"tcp/ip\",\"priority\":\"1\",\"classification\":\"4\",\"blocked\":true,\"message\":\"EXPLOIT-KIT Multiple exploit kit single digit exe detection\",\"signature\":\"1:28423:1\",\"sigSource\":\"\",\"ruleId\":\"meraki:intrusion/snort/GID/1/SID/28423\"},{\"ts\":\"2025-11-13T07:52:30.000000Z\",\"eventType\":\"File Scanned\",\"clientName\":\"laptop-02\",\"clientMac\":\"aa:bb:cc:11:22:40\",\"clientIp\":\"10.10.1.30\",\"srcIp\":\"203.0.113.77\",\"destIp\":\"10.10.1.30\",\"protocol\":\"http\",\"uri\":\"http://bad.example.net/dl/payload.exe?x=1\",\"canonicalName\":\"Win.Trojan.Agent\",\"destinationPort\":80,\"fileHash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"fileType\":\"MS_EXE\",\"fileSizeBytes\":193020,\"disposition\":\"Malicious\",\"action\":\"Blocked\"}]",
+    "_time": 1763020800,
+    "sourcetype": "meraki:organizationsecurity",
+    "__meraki_kind": "api"
+  },
+  {
+    "_raw": "[{\"ts\":\"2025-11-13T07:55:01.000000Z\",\"adminName\":\"Jane Admin\",\"adminEmail\":\"jane.admin@corp.example\",\"adminId\":\"212406\",\"networkName\":\"HQ\",\"networkId\":\"L_111\",\"networkUrl\":\"https://n1.meraki.com/HQ/n/xyz\",\"ssidName\":null,\"ssidNumber\":null,\"page\":\"via API\",\"label\":\"PUT /api/v1/networks/L_111/appliance/firewall/l3FirewallRules\",\"oldValue\":\"{\\\"rules\\\":[]}\",\"newValue\":\"{\\\"rules\\\":[{\\\"policy\\\":\\\"deny\\\"}]}\",\"client\":{\"id\":\"k9\",\"type\":\"API key\"}}]",
+    "_time": 1763020800,
+    "sourcetype": "meraki:audit",
+    "__meraki_kind": "api"
+  },
+  {
+    "_raw": "[{\"name\":\"MX84_HQ\",\"lat\":43.65,\"lng\":-79.38,\"address\":\"\",\"notes\":\"\",\"tags\":[\"hq\"],\"networkId\":\"L_111\",\"serial\":\"Q2XX-AAAA-BBBB\",\"model\":\"MX84\",\"mac\":\"e0:cb:bc:00:00:01\",\"lanIp\":null,\"firmware\":\"wired-18-211-2\",\"productType\":\"appliance\"},{\"name\":\"\",\"serial\":\"Q3XX-CCCC-DDDD\",\"model\":\"MR46\",\"mac\":\"e0:cb:bc:00:00:02\",\"lanIp\":\"10.40.0.10\",\"networkId\":\"L_222\",\"productType\":\"wireless\",\"firmware\":\"wireless-31-1-5\"}]",
+    "_time": 1763020800,
+    "sourcetype": "meraki:devices",
+    "__meraki_kind": "api"
+  },
+  {
+    "_raw": "[{\"ts\":\"2025-11-13T07:40:00.000Z\",\"device\":{\"serial\":\"Q3XX-CCCC-DDDD\",\"name\":\"MR46_Floor2\",\"productType\":\"wireless\",\"model\":\"MR46\"},\"details\":{\"old\":[{\"name\":\"status\",\"value\":\"online\"}],\"new\":[{\"name\":\"status\",\"value\":\"offline\"}]},\"network\":{\"id\":\"L_222\",\"name\":\"Floor2\"}}]",
+    "_time": 1763020800,
+    "sourcetype": "meraki:devicesavailabilitieschangehistory",
+    "__meraki_kind": "api"
+  },
+  {
+    "_raw": "{\"items\":[{\"serial\":\"WLC-9800-1\",\"intervals\":[{\"startTs\":\"2025-11-12T00:00:00Z\",\"overall\":{\"usage\":{\"total\":1000,\"recv\":600,\"send\":400}}},{\"startTs\":\"2025-11-12T01:00:00Z\",\"overall\":{\"usage\":{\"total\":2000,\"recv\":1500,\"send\":500}}}]}],\"meta\":{\"counts\":{\"items\":{\"total\":1,\"remaining\":0}}}}",
+    "_time": 1763020800,
+    "sourcetype": "meraki:wirelesscontrollerdevicesinterfacesusagehistorybyinterval",
+    "__meraki_kind": "api"
+  },
+  {
+    "_raw": "{\"status\":\"OK\",\"expirationDate\":\"Mar 13, 2027 UTC\",\"licensedDeviceCounts\":{\"MS\":10,\"MR\":40,\"MX\":2}}",
+    "_time": 1763020800,
+    "sourcetype": "meraki:licensesoverview",
+    "__meraki_kind": "api"
+  },
+  {
+    "_raw": "[{\"ssid\":\"FreeWiFi\",\"bssids\":[{\"bssid\":\"02:18:5A:AE:56:00\",\"contained\":false,\"detectedBy\":[{\"device\":\"Q3XX-CCCC-DDDD\",\"rssi\":21}]}],\"channels\":[157],\"firstSeen\":1762934400,\"lastSeen\":1763020000,\"wiredMacs\":[],\"wiredVlans\":[],\"wiredLastSeen\":null}]",
+    "_time": 1763020800,
+    "sourcetype": "meraki:airmarshal",
+    "__meraki_kind": "api"
+  },
+  {
+    "_raw": "[{\"id\":\"123456\",\"name\":\"Example Corp\",\"url\":\"https://n1.meraki.com/o/abc/manage/organization/overview\"},{\"id\":\"999\",\"name\":\"Lab\",\"url\":\"https://n2.meraki.com/o/def/manage/organization/overview\"}]",
+    "_time": 1763020800,
+    "sourcetype": "meraki:organizations",
+    "__meraki_kind": "api"
+  }
+]

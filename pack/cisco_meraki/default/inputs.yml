@@ -1,0 +1,67 @@
+inputs:
+  meraki_syslog:
+    type: syslog
+    disabled: true
+    description: Meraki syslog (Dashboard > Network-wide > General > Syslog servers). UDP is what Meraki sends.
+    host: 0.0.0.0
+    udpPort: 5514
+    tcpPort: 5514
+    maxBufferSize: 1000
+    ipWhitelistRegex: /.*/
+    timestampTimezone: UTC
+    singleMsgUdpPackets: true
+    enableProxyHeader: false
+    keepFieldsList: []
+    octetCounting: false
+    inferFraming: true
+    strictlyInferOctetCounting: true
+    allowNonStandardAppName: true
+    maxActiveCxn: 1000
+    socketIdleTimeout: 0
+    socketEndingMaxWait: 30
+    socketMaxLifespan: 0
+    tls:
+      disabled: true
+    sendToRoutes: true
+    pqEnabled: false
+    streamtags:
+    - meraki
+    metadata:
+    - name: __meraki_kind
+      value: '''syslog'''
+  meraki_webhook:
+    type: http_raw
+    disabled: true
+    description: 'Meraki alert webhooks. Meraki only delivers to HTTPS URLs with a publicly trusted certificate: enable TLS here or terminate TLS on a load balancer.'
+    host: 0.0.0.0
+    port: 10443
+    authTokens: []
+    tls:
+      disabled: true
+    maxActiveReq: 256
+    maxRequestsPerSocket: 0
+    enableProxyHeader: false
+    captureHeaders: false
+    activityLogSampleRate: 100
+    requestTimeout: 0
+    socketTimeout: 0
+    keepAliveTimeout: 5
+    enableHealthCheck: false
+    ipAllowlistRegex: /.*/
+    ipDenylistRegex: /^$/
+    breakerRulesets:
+    - meraki_json_document
+    staleChannelFlushMs: 10000
+    allowedPaths:
+    - /meraki/webhook
+    allowedMethods:
+    - POST
+    sendToRoutes: true
+    pqEnabled: false
+    streamtags:
+    - meraki
+    metadata:
+    - name: __meraki_kind
+      value: '''webhook'''
+    - name: sourcetype
+      value: '''meraki:webhook'''

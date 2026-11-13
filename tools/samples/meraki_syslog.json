@@ -1,0 +1,92 @@
+[
+  {
+    "_raw": "<134>1 1763020801.123456789 MX84_HQ flows src=10.10.1.25 dst=8.8.8.8 mac=AA:BB:CC:11:22:33 protocol=udp sport=51515 dport=53 pattern: allow all",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020802.223456789 MX84_HQ flows deny src=10.10.1.26 dst=203.0.113.9 mac=AA:BB:CC:11:22:34 protocol=tcp sport=40000 dport=23 pattern: deny (dst 203.0.113.0/24)",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020803.000000001 MX84_HQ firewall src=10.10.1.27 dst=198.51.100.7 mac=AA:BB:CC:11:22:35 protocol=tcp sport=40001 dport=445 pattern: 0 all",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020804.000000001 MX84_HQ vpn_firewall src=10.20.0.5 dst=10.30.0.9 protocol=icmp type=8 pattern: allow all",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020805.000000001 MX84_HQ urls src=10.10.1.25:52133 dst=93.184.216.34:443 mac=AA:BB:CC:11:22:33 agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64)' request: GET https://www.example.com/index.html?q=a=b",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020806.000000001 MX84_HQ ids-alerts signature=1:28423:1 priority=1 timestamp=1763020806.012345 dhost=98:5A:EB:11:22:33 direction=ingress protocol=tcp/ip src=203.0.113.50:80 dst=10.10.1.25:51200 decision=blocked message: EXPLOIT-KIT Multiple exploit kit single digit exe detection",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020807.000000001 MX84_HQ security_event ids_alerted signature=1:41944:2 priority=2 timestamp=1763020807.000 dhost=98:5A:EB:11:22:33 direction=egress protocol=udp/ip src=10.10.1.25:5353 dst=198.51.100.10:53 decision=allowed message: PROTOCOL-DNS suspicious query",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020808.000000001 MX84_HQ security_event security_filtering_file_scanned url=http://bad.example.net/payload.exe src=203.0.113.77:80 dst=10.10.1.30:49152 mac=AA:BB:CC:11:22:40 name='Win.Trojan.Agent' sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 disposition=malicious action=block",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020809.000000001 MR46_Floor2 events type=8021x_eap_success radio='1' vap='2' client_mac='F0:18:98:AA:BB:CC' client_ip='10.40.2.15' identity='jdoe@corp.example' aid='1842117271'",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020810.000000001 MR46_Floor2 events type=association radio='0' vap='1' channel='6' rssi='45' aid='12345'",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020811.000000001 MX84_HQ events dhcp lease of ip 10.10.1.88 from server mac E0:CB:BC:00:00:01 for client mac 3C:22:FB:12:34:56 from router 10.10.1.1 on subnet 255.255.255.0 with dns 10.0.0.53, 10.0.0.54",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020812.000000001 MS225_IDF1 events port 12 status changed from 1Gfdx to down",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020813.000000001 MX84_HQ events content_filtering_block url='http://casino.example.com/' category0='Gambling' server='198.51.100.44:80'",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020814.000000001 MX84_HQ events Site-to-site VPN: IKE_SA vpn-peer-1[12] established between 203.0.113.1 and 198.51.100.1",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020815.000000001 MR46_Floor2 airmarshal_events type=rogue_ssid_detected ssid='FreeWiFi' bssid='02:18:5A:AE:56:00' src='02:18:5A:AE:56:00' dst='FF:FF:FF:FF:FF:FF' wired_mac='AA:BB:CC:DD:EE:FF' vlan_id='0' channel='157' rssi='21' fc_type='0' fc_subtype='5'",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>1 1763020816.000000001 MX84_HQ ip_flow_end src=10.10.1.25 dst=142.250.80.46 protocol=tcp sport=50123 dport=443 translated_src_ip=203.0.113.1 translated_port=61001",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "<134>Nov 13 08:00:17 syslog-relay01 1 1763020817.000000001 MX84_HQ anyconnect_vpn_auth_success user id 'jdoe' local ip 10.99.0.5 connected from 198.51.100.200",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  },
+  {
+    "_raw": "this line is not meraki syslog at all",
+    "_time": 1763020800,
+    "__meraki_kind": "syslog"
+  }
+]

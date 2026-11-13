@@ -1,0 +1,3725 @@
+meraki_securityappliances:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:securityappliances - MX/Z event log (DHCP, IDS, VPN, content filtering) (TA input: cisco_meraki_securityappliances)'
+  schedule:
+    enabled: false
+    cronSchedule: '*/5 * * * *'
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -10m@m
+      latest: -5m@m
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: http
+        discoverMethod: get
+        discoverUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/networks`'
+        discoverRequestParams:
+        - name: perPage
+          value: '''100000'''
+        - name: productTypes[]
+          value: '''appliance'''
+        discoverRequestHeaders:
+        - name: Accept
+          value: '''application/json'''
+        discoverDataField: ''
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/networks/${id}/events`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: productType
+        value: '''appliance'''
+      - name: startingAfter
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: endingBefore
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:securityappliances'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_accesspoints:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:accesspoints - MR event log (802.1X/WPA/splash auth, RF changes, wireless attacks) (TA input: cisco_meraki_accesspoints)'
+  schedule:
+    enabled: false
+    cronSchedule: '*/15 * * * *'
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -20m@m
+      latest: -5m@m
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: http
+        discoverMethod: get
+        discoverUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/networks`'
+        discoverRequestParams:
+        - name: perPage
+          value: '''100000'''
+        - name: productTypes[]
+          value: '''wireless'''
+        discoverRequestHeaders:
+        - name: Accept
+          value: '''application/json'''
+        discoverDataField: ''
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/networks/${id}/events`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: productType
+        value: '''wireless'''
+      - name: startingAfter
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: endingBefore
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:accesspoints'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_switches:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:switches - MS event log (port status, STP, PoE, PSU) (TA input: cisco_meraki_switches)'
+  schedule:
+    enabled: false
+    cronSchedule: '*/15 * * * *'
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -20m@m
+      latest: -5m@m
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: http
+        discoverMethod: get
+        discoverUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/networks`'
+        discoverRequestParams:
+        - name: perPage
+          value: '''100000'''
+        - name: productTypes[]
+          value: '''switch'''
+        discoverRequestHeaders:
+        - name: Accept
+          value: '''application/json'''
+        discoverDataField: ''
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/networks/${id}/events`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: productType
+        value: '''switch'''
+      - name: startingAfter
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: endingBefore
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:switches'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_cameras:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:cameras - MV event log (schedules, night mode, exports) (TA input: cisco_meraki_cameras)'
+  schedule:
+    enabled: false
+    cronSchedule: 7 * * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h@h
+      latest: '@h'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: http
+        discoverMethod: get
+        discoverUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/networks`'
+        discoverRequestParams:
+        - name: perPage
+          value: '''100000'''
+        - name: productTypes[]
+          value: '''camera'''
+        discoverRequestHeaders:
+        - name: Accept
+          value: '''application/json'''
+        discoverDataField: ''
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/networks/${id}/events`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: productType
+        value: '''camera'''
+      - name: startingAfter
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: endingBefore
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:cameras'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_airmarshal:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:airmarshal - Rogue / neighbouring SSIDs seen by MR radios (TA input: cisco_meraki_airmarshal)'
+  schedule:
+    enabled: false
+    cronSchedule: 7 * * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h@h
+      latest: '@h'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: http
+        discoverMethod: get
+        discoverUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/networks`'
+        discoverRequestParams:
+        - name: perPage
+          value: '''100000'''
+        - name: productTypes[]
+          value: '''wireless'''
+        discoverRequestHeaders:
+        - name: Accept
+          value: '''application/json'''
+        discoverDataField: ''
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/networks/${id}/wireless/airMarshal`'
+      collectRequestParams:
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:airmarshal'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_organizationsecurity:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:organizationsecurity - MX IDS/IPS alerts and AMP file scans (TA input: cisco_meraki_organizationsecurity)'
+  schedule:
+    enabled: false
+    cronSchedule: '*/5 * * * *'
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -10m@m
+      latest: -5m@m
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/appliance/security/events`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      - name: sortOrder
+        value: '''ascending'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:organizationsecurity'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_audit:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:audit - Dashboard configuration change log (TA input: cisco_meraki_audit)'
+  schedule:
+    enabled: false
+    cronSchedule: '*/15 * * * *'
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -20m@m
+      latest: -5m@m
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/configurationChanges`'
+      collectRequestParams:
+      - name: perPage
+        value: '''5000'''
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:audit'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_apirequestshistory:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:apirequestshistory - Dashboard API request audit log (TA input: cisco_meraki_api_request_history)'
+  schedule:
+    enabled: false
+    cronSchedule: 7 * * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h@h
+      latest: '@h'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/apiRequests`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:apirequestshistory'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_webhooklogs_api:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:webhooklogs:api - Webhook delivery log (TA input: cisco_meraki_webhook_logs)'
+  schedule:
+    enabled: false
+    cronSchedule: 7 * * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h@h
+      latest: '@h'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/webhooks/logs`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:webhooklogs:api'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_assurancealerts:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:assurancealerts - Assurance (health) alerts (TA input: cisco_meraki_assurance_alerts)'
+  schedule:
+    enabled: false
+    cronSchedule: 7 * * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h@h
+      latest: '@h'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/assurance/alerts`'
+      collectRequestParams:
+      - name: perPage
+        value: '''300'''
+      - name: tsStart
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: tsEnd
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:assurancealerts'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_devices:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:devices - Device inventory (TA input: cisco_meraki_devices)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/devices`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:devices'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_devicesavailabilities:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:devicesavailabilities - Current online/offline/alerting state per device (TA input: cisco_meraki_devices_availabilities)'
+  schedule:
+    enabled: false
+    cronSchedule: 7 * * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/devices/availabilities`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:devicesavailabilities'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_devicesavailabilitieschangehistory:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:devicesavailabilitieschangehistory - Device availability transitions (TA input: cisco_meraki_device_availabilities_change_history)'
+  schedule:
+    enabled: false
+    cronSchedule: '*/15 * * * *'
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -20m@m
+      latest: -5m@m
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/devices/availabilities/changeHistory`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:devicesavailabilitieschangehistory'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_devicesuplinksaddressesbydevice:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:devicesuplinksaddressesbydevice - Uplink IP addressing per device (TA input: cisco_meraki_device_uplink_addresses_by_device)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/devices/uplinks/addresses/byDevice`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:devicesuplinksaddressesbydevice'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_devicesuplinkslossandlatency:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:devicesuplinkslossandlatency - MX/MG uplink loss + latency (API caps t1-t0 at 5 minutes) (TA input: cisco_meraki_devices_uplinks_loss_and_latency)'
+  schedule:
+    enabled: false
+    cronSchedule: '*/5 * * * *'
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -10m@m
+      latest: -5m@m
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/devices/uplinksLossAndLatency`'
+      collectRequestParams:
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:devicesuplinkslossandlatency'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_powermodulesstatusesbydevice:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:powermodulesstatusesbydevice - PSU status for MS/MX with modular power (TA input: cisco_meraki_power_modules_statuses_by_device)'
+  schedule:
+    enabled: false
+    cronSchedule: 7 * * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/devices/powerModules/statuses/byDevice`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:powermodulesstatusesbydevice'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_firmwareupgrades:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:firmwareupgrades - Firmware upgrade history (TA input: cisco_meraki_firmware_upgrades)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/firmware/upgrades`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:firmwareupgrades'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_organizationsnetworks:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:organizationsnetworks - Network inventory (TA input: cisco_meraki_organization_networks)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/networks`'
+      collectRequestParams:
+      - name: perPage
+        value: '''100000'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:organizationsnetworks'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_organizations:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:organizations - Organisations visible to the API key (TA input: cisco_meraki_organizations)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations`'
+      collectRequestParams:
+      - name: perPage
+        value: '''9000'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:organizations'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_wirelessdevicesethernetstatuses:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:wirelessdevicesethernetstatuses - MR ethernet / power status (TA input: cisco_meraki_wireless_devices_ethernet_statuses)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/wireless/devices/ethernet/statuses`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:wirelessdevicesethernetstatuses'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_wirelessdevicespacketlossbydevice:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:wirelessdevicespacketlossbydevice - MR packet loss (TA input: cisco_meraki_wireless_packet_loss_by_device)'
+  schedule:
+    enabled: false
+    cronSchedule: 7 * * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h@h
+      latest: '@h'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/wireless/devices/packetLoss/byDevice`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:wirelessdevicespacketlossbydevice'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_wirelessdeviceswirelesscontrollersbydevice:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:wirelessdeviceswirelesscontrollersbydevice - APs managed by Catalyst WLCs (TA input: cisco_meraki_wireless_devices_by_wlc)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/wireless/devices/wirelessControllers/byDevice`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:wirelessdeviceswirelesscontrollersbydevice'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_wirelesscontrolleravailabilitieschangehistory:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:wirelesscontrolleravailabilitieschangehistory - Catalyst WLC availability changes (TA input: cisco_meraki_wlc_avail_change_history)'
+  schedule:
+    enabled: false
+    cronSchedule: 7 * * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h@h
+      latest: '@h'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/wirelessController/availabilities/changeHistory`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:wirelesscontrolleravailabilitieschangehistory'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_wirelesscontrollerdevicesinterfacesusagehistorybyinterval:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:wirelesscontrollerdevicesinterfacesusagehistorybyinterval - Catalyst WLC interface usage (TA input: cisco_meraki_wlc_iface_usage_history)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 0 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1d@d
+      latest: '@d'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/wirelessController/devices/interfaces/usage/history/byInterval`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:wirelesscontrollerdevicesinterfacesusagehistorybyinterval'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_wirelesscontrollerdevicesinterfacespacketsoverviewbydevice:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:wirelesscontrollerdevicesinterfacespacketsoverviewbydevice - Catalyst WLC interface packet counters (TA input: cisco_meraki_wlc_iface_pkts_overview)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 0 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1d@d
+      latest: '@d'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/wirelessController/devices/interfaces/packets/overview/byDevice`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:wirelesscontrollerdevicesinterfacespacketsoverviewbydevice'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_switchportsbyswitch:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:switchportsbyswitch - Switch port configuration (TA input: cisco_meraki_switch_ports_by_switch)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/switch/ports/bySwitch`'
+      collectRequestParams:
+      - name: perPage
+        value: '''50'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:switchportsbyswitch'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_switchportsoverview:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:switchportsoverview - Switch port counts by status/speed (TA input: cisco_meraki_switch_port_overview)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 0 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1d@d
+      latest: '@d'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/switch/ports/overview`'
+      collectRequestParams:
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:switchportsoverview'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_portstransceiversreadingshistorybyswitch:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:portstransceiversreadingshistorybyswitch - SFP DOM readings (TA input: cisco_meraki_switch_xcvr_readings_history)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/switch/ports/transceivers/readings/history/bySwitch`'
+      collectRequestParams:
+      - name: perPage
+        value: '''100'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:portstransceiversreadingshistorybyswitch'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_summaryswitchpowerhistory:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:summaryswitchpowerhistory - Switch power draw history (TA input: cisco_meraki_summary_switch_power_history)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 0 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1d@d
+      latest: '@d'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/summary/switch/power/history`'
+      collectRequestParams:
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:summaryswitchpowerhistory'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_summarytopappliancesbyutilization:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:summarytopappliancesbyutilization - Daily top-10 summary (TA input: cisco_meraki_summary_appliances_top_by_utilization)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 0 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1d@d
+      latest: '@d'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/summary/top/appliances/byUtilization`'
+      collectRequestParams:
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      - name: quantity
+        value: '''10'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:summarytopappliancesbyutilization'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_summarytopclientsbyusage:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:summarytopclientsbyusage - Daily top-10 summary (TA input: cisco_meraki_summary_top_clients_by_usage)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 0 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1d@d
+      latest: '@d'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/summary/top/clients/byUsage`'
+      collectRequestParams:
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      - name: quantity
+        value: '''10'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:summarytopclientsbyusage'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_summarytopdevicesbyusage:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:summarytopdevicesbyusage - Daily top-10 summary (TA input: cisco_meraki_summary_top_devices_by_usage)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 0 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1d@d
+      latest: '@d'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/summary/top/devices/byUsage`'
+      collectRequestParams:
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      - name: quantity
+        value: '''10'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:summarytopdevicesbyusage'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_summarytopswitchesbyenergyusage:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:summarytopswitchesbyenergyusage - Daily top-10 summary (TA input: cisco_meraki_summary_top_switches_by_energy_usage)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 0 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1d@d
+      latest: '@d'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/summary/top/switches/byEnergyUsage`'
+      collectRequestParams:
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      - name: quantity
+        value: '''10'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:summarytopswitchesbyenergyusage'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_apirequestsoverview:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:apirequestsoverview - API response code totals (TA input: cisco_meraki_api_request_overview)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 0 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1d@d
+      latest: '@d'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/apiRequests/overview`'
+      collectRequestParams:
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:apirequestsoverview'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_apirequestsresponsecodes:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:apirequestsresponsecodes - API response codes per hour (TA input: cisco_meraki_api_request_response_code)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 0 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1d@d
+      latest: '@d'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/apiRequests/overview/responseCodes/byInterval`'
+      collectRequestParams:
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      - name: interval
+        value: '''3600'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:apirequestsresponsecodes'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_appliancesdwanstatistics:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:appliancesdwanstatistics - AutoVPN peer statistics (TA input: cisco_meraki_appliance_vpn_stats)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 0 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1d@d
+      latest: '@d'
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/appliance/vpn/stats`'
+      collectRequestParams:
+      - name: perPage
+        value: '''300'''
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:appliancesdwanstatistics'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_appliancesdwanstatuses:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:appliancesdwanstatuses - AutoVPN peer status (TA input: cisco_meraki_appliance_vpn_statuses)'
+  schedule:
+    enabled: false
+    cronSchedule: 7 * * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/appliance/vpn/statuses`'
+      collectRequestParams:
+      - name: perPage
+        value: '''300'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:appliancesdwanstatuses'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_licensesoverview:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:licensesoverview - Co-term / per-device licence overview (TA input: cisco_meraki_licenses_overview)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/licenses/overview`'
+      collectRequestParams: []
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:licensesoverview'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_licensescotermlicenses:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:licensescotermlicenses - Co-term licences (TA input: cisco_meraki_licenses_coterm_licenses)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/licensing/coterm/licenses`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:licensescotermlicenses'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_licensessubscriptions:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:licensessubscriptions - Subscription licences (TA input: cisco_meraki_licenses_subscriptions)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/administered/licensing/subscription/subscriptions`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: organizationIds[]
+        value: C.vars.meraki_org_id
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:licensessubscriptions'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_licensessubscriptionentitlements:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:licensessubscriptionentitlements - Subscription entitlements (SKU catalogue) (TA input: cisco_meraki_licenses_subscription_entitlements)'
+  schedule:
+    enabled: false
+    cronSchedule: 17 1 * * *
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -1h
+      latest: now
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/administered/licensing/subscription/entitlements`'
+      collectRequestParams: []
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:licensessubscriptionentitlements'''
+    - name: __meraki_kind
+      value: '''api'''
+meraki_sensorreadingshistory:
+  type: collection
+  ttl: 4h
+  ignoreGroupJobsLimit: false
+  removeFields: []
+  resumeOnBoot: false
+  description: 'meraki:sensorreadingshistory - MT sensor readings (TA input: cisco_meraki_sensor_readings_history)'
+  schedule:
+    enabled: false
+    cronSchedule: '*/15 * * * *'
+    maxConcurrentRuns: 1
+    skippable: true
+    resumeMissed: false
+    run:
+      rescheduleDroppedTasks: true
+      maxTaskReschedule: 1
+      logLevel: info
+      jobTimeout: '0'
+      mode: run
+      timeRangeType: relative
+      earliest: -20m@m
+      latest: -5m@m
+      timestampTimezone: UTC
+      timeWarning: {}
+      expression: 'true'
+      minTaskSize: 1MB
+      maxTaskSize: 10MB
+  streamtags:
+  - meraki
+  workerAffinity: false
+  collector:
+    type: rest
+    conf:
+      discovery:
+        discoverType: none
+      collectMethod: get
+      collectUrl: '`https://${C.vars.meraki_api_host}/api/v1/organizations/${C.vars.meraki_org_id}/sensor/readings/history`'
+      collectRequestParams:
+      - name: perPage
+        value: '''1000'''
+      - name: t0
+        value: 'new Date((earliest ? earliest : Date.now() / 1000 - 3600) * 1000).toISOString()'
+      - name: t1
+        value: 'new Date((latest ? latest : Date.now() / 1000) * 1000).toISOString()'
+      collectRequestHeaders:
+      - name: Accept
+        value: '''application/json'''
+      authentication: tokenSecret
+      tokenSecret: meraki_api_key
+      pagination:
+        type: response_header_link
+        nextRelationAttribute: next
+        maxPages: 0
+      timeout: 120
+      useRoundRobinDns: false
+      disableTimeFilter: true
+      decodeUrl: true
+      rejectUnauthorized: true
+      captureHeaders: false
+      stopOnEmptyResults: true
+      safeHeaders: []
+      retryRules:
+        type: backoff
+        interval: 1000
+        limit: 6
+        multiplier: 2
+        codes:
+        - 429
+        - 502
+        - 503
+        - 504
+        enableHeader: true
+        retryConnectTimeout: true
+        retryConnectReset: true
+    destructive: false
+  input:
+    type: collection
+    staleChannelFlushMs: 10000
+    sendToRoutes: true
+    preprocess:
+      disabled: true
+    throttleRatePerSec: '0'
+    breakerRulesets:
+    - meraki_json_document
+    metadata:
+    - name: sourcetype
+      value: '''meraki:sensorreadingshistory'''
+    - name: __meraki_kind
+      value: '''api'''

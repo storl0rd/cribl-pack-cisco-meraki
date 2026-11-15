@@ -1,6 +1,6 @@
 {
   "name": "cisco_meraki",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "Aether8 AI Consulting Inc.",
   "description": "Cisco Meraki ingestion: Dashboard API REST collectors (parity with Splunk TA 3.5.0), alert webhooks and MX/MS/MR syslog, with Splunk-TA-compatible sourcetypes and optional CIM enrichment.",
   "displayName": "Cisco Meraki",

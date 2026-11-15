@@ -10,17 +10,11 @@ meraki_org_id:
   value: ''
   description: Meraki organization ID collected by the REST collectors (GET /api/v1/organizations).
   tags: meraki
-meraki_output_mode:
-  type: string
-  lib: custom
-  value: raw
-  description: raw = byte-for-byte Splunk TA compatible _raw (search-time CIM via the TA). structured = _raw JSON gains a `cim` object (for non-Splunk destinations).
-  tags: meraki
 meraki_index:
   type: string
   lib: custom
   value: ''
-  description: Optional destination index written to the `index` field. Empty = leave to Destination/Route.
+  description: 'splunk profile only: value written to `index`. Empty = leave to the Destination.'
   tags: meraki
 meraki_webhook_shared_secret:
   type: string
@@ -32,5 +26,89 @@ meraki_syslog_drop_categories:
   type: string
   lib: custom
   value: ''
-  description: Comma-separated Meraki syslog roles to drop at the edge, e.g. flows,urls (largest volume roles).
+  description: Comma-separated Meraki syslog roles dropped for ALL destinations (incl. archive), e.g. flows,urls.
+  tags: meraki
+meraki_known_good_destinations:
+  type: string
+  lib: custom
+  value: ''
+  description: 'drop_known_good_flows: comma list of IPv4[/cidr][:port], e.g. 10.0.0.53:53,10.0.0.0/8:123'
+  tags: meraki
+meraki_secops_log_type:
+  type: string
+  lib: custom
+  value: CISCO_MERAKI
+  description: 'secops profile: Google SecOps ingestion label (__logType).'
+  tags: meraki
+meraki_secops_namespace:
+  type: string
+  lib: custom
+  value: ''
+  description: 'secops profile: optional Google SecOps namespace (__namespace).'
+  tags: meraki
+meraki_dest_splunk_enabled:
+  type: string
+  lib: custom
+  value: 'true'
+  description: splunk profile on/off (true|false).
+  tags: meraki
+meraki_dest_splunk_tiers:
+  type: string
+  lib: custom
+  value: security,operational,inventory
+  description: 'splunk profile: tiers to receive (security,operational,inventory or *).'
+  tags: meraki
+meraki_reduce_splunk:
+  type: string
+  lib: custom
+  value: ''
+  description: 'splunk profile: comma list of reductions: strip_nulls, inventory_changes_only, dedupe_airmarshal, dedupe_urls, drop_ip_flow_start, drop_wireless_assoc, drop_known_good_flows, flow_summary'
+  tags: meraki
+meraki_dest_secops_enabled:
+  type: string
+  lib: custom
+  value: 'false'
+  description: secops profile on/off (true|false).
+  tags: meraki
+meraki_dest_secops_tiers:
+  type: string
+  lib: custom
+  value: security
+  description: 'secops profile: tiers to receive (security,operational,inventory or *).'
+  tags: meraki
+meraki_reduce_secops:
+  type: string
+  lib: custom
+  value: ''
+  description: 'secops profile: comma list of reductions: strip_nulls, inventory_changes_only, dedupe_airmarshal, dedupe_urls, drop_ip_flow_start, drop_wireless_assoc, drop_known_good_flows, flow_summary'
+  tags: meraki
+meraki_dest_archive_enabled:
+  type: string
+  lib: custom
+  value: 'false'
+  description: archive profile on/off (true|false).
+  tags: meraki
+meraki_dest_archive_tiers:
+  type: string
+  lib: custom
+  value: '*'
+  description: 'archive profile: tiers to receive (security,operational,inventory or *).'
+  tags: meraki
+meraki_dest_structured_enabled:
+  type: string
+  lib: custom
+  value: 'false'
+  description: structured profile on/off (true|false).
+  tags: meraki
+meraki_dest_structured_tiers:
+  type: string
+  lib: custom
+  value: security,operational,inventory
+  description: 'structured profile: tiers to receive (security,operational,inventory or *).'
+  tags: meraki
+meraki_reduce_structured:
+  type: string
+  lib: custom
+  value: ''
+  description: 'structured profile: comma list of reductions: strip_nulls, inventory_changes_only, dedupe_airmarshal, dedupe_urls, drop_ip_flow_start, drop_wireless_assoc, drop_known_good_flows, flow_summary'
   tags: meraki

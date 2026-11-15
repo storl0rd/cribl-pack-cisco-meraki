@@ -44,7 +44,7 @@ const tags = [];
 if (!m) {
   __e.sourcetype = 'meraki:syslog';
   __e.source = 'meraki:syslog:unparsed';
-  __e.__meraki = { kind: 'syslog', parse_error: 'header did not match Meraki syslog format' };
+  __e.__meraki = { kind: 'syslog', tier: 'security', parse_error: 'header did not match Meraki syslog format', record: { original_message: raw } };
 } else {
   if (m[1] !== undefined) p.syslog_pri = Number(m[1]);
   p.meraki_epoch = m[2];
@@ -182,18 +182,14 @@ if (!m) {
   __e.host = String(p.meraki_device).toLowerCase();
   __e.sourcetype = 'meraki:syslog';
   __e.source = 'meraki:syslog:' + cat;
-  if (__e.__cfg_index) __e.index = __e.__cfg_index;
 
   const drop = String(__e.__cfg_syslog_drop || '').split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x; });
   if (drop.indexOf(cat) !== -1) __e.__meraki_drop = 'category_filtered';
 
-  __e.__meraki = { kind: 'syslog', category: cat, subtype: p.meraki_subtype, event_type: p.meraki_event_type, fields: p, cim: c };
-  if (__e.__cfg_output_mode === 'structured') {
-    const out = {};
-    const pk = Object.keys(p);
-    for (let i = 0; i < pk.length; i++) out[pk[i]] = p[pk[i]];
-    out.cim = c;
-    out.original_message = raw;
-    __e._raw = JSON.stringify(out);
-  }
+  // record = what the `structured` destination profile serialises; _raw stays the original line
+  const rec = {};
+  const pk = Object.keys(p);
+  for (let i = 0; i < pk.length; i++) rec[pk[i]] = p[pk[i]];
+  rec.original_message = raw;
+  __e.__meraki = { kind: 'syslog', tier: 'security', category: cat, subtype: p.meraki_subtype, event_type: p.meraki_event_type, fields: p, record: rec, cim: c };
 }

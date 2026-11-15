@@ -15,7 +15,7 @@ if (typeof original === 'string') {
 if (!j || typeof j !== 'object' || Array.isArray(j)) {
   __e.sourcetype = 'meraki:webhook';
   __e.source = 'meraki:webhook';
-  __e.__meraki = { kind: 'webhook', parse_error: 'webhook body is not a JSON object' };
+  __e.__meraki = { kind: 'webhook', tier: 'security', parse_error: 'webhook body is not a JSON object' };
 } else {
   let enveloped = false;
   if (j.event && typeof j.event === 'object' && j.alertType === undefined) { j = j.event; enveloped = true; }
@@ -39,7 +39,6 @@ if (!j || typeof j !== 'object' || Array.isArray(j)) {
   if (typeof h === 'string' && h.trim()) __e.host = h.trim().toLowerCase();
   __e.sourcetype = 'meraki:webhook';
   __e.source = 'meraki:webhook';
-  if (__e.__cfg_index) __e.index = __e.__cfg_index;
 
   // ---- CIM (TA FIELDALIAS: alertId->id, alertType->type, deviceMac->dest, alertLevel->severity)
   const c = {
@@ -56,7 +55,6 @@ if (!j || typeof j !== 'object' || Array.isArray(j)) {
   };
   const keys = Object.keys(c);
   for (let i = 0; i < keys.length; i++) { if (c[keys[i]] === undefined || c[keys[i]] === null || c[keys[i]] === '') delete c[keys[i]]; }
-  if (__e.__cfg_output_mode === 'structured') j.cim = c;
-  __e.__meraki = { kind: 'webhook', alert_type: j.alertType, cim: c };
+  __e.__meraki = { kind: 'webhook', tier: 'security', alert_type: j.alertType, record: j, cim: c };
   __e._raw = JSON.stringify(j);
 }
